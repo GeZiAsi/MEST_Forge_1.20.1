@@ -1,10 +1,22 @@
 package com.lhy.mestdevtest;
 
+import java.lang.reflect.Method;
 import java.util.List;
+
+import net.minecraft.client.Minecraft;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+
+import appeng.api.crafting.PatternDetailsHelper;
+import appeng.blockentity.crafting.PatternProviderBlockEntity;
+import appeng.core.definitions.AEItems;
 
 import appeng.parts.encoding.EncodingMode;
 
 import com.lhy.mest.client.MESTScreen;
+import com.lhy.mest.client.MestClientModules;
+import com.lhy.mest.terminal.MESTMenu;
 
 /** The scripted checks run after the terminal opened. Extend as needed while debugging. */
 final class DevTestSteps {
@@ -36,5 +48,134 @@ final class DevTestSteps {
                 screen.meListPanel().setSearchValue("iron");
             }
         }));
+        steps.add(new MestDevTest.Step("clear search", 5, null, mc -> {
+            if (mc.screen instanceof MESTScreen screen) {
+                screen.meListPanel().setSearchValue("");
+            }
+        }));
+        steps.add(new MestDevTest.Step("encode crafting pattern + auto-upload", 20, "mest_04_encoded_crafting",
+                mc -> MestDevTest.runOnServer(mc, DevTestSteps::encodeCraftingPattern)));
+        steps.add(new MestDevTest.Step("encode processing pattern", 20, "mest_05_encoded_processing",
+                mc -> MestDevTest.runOnServer(mc, DevTestSteps::encodeProcessingPattern)));
+        if (net.minecraftforge.fml.ModList.get().isLoaded("jei")) {
+            var crafting = com.lhy.mest.integration.MestRecipeTransferContext.Target.CRAFTING;
+            var encoding = com.lhy.mest.integration.MestRecipeTransferContext.Target.PATTERN_ENCODING;
+            steps.add(new MestDevTest.Step("show crafting grid", 5, null, mc -> runHotkey(mc, "crafting")));
+            steps.add(new MestDevTest.Step("jei transfer to crafting grid", 20, "mest_06_jei_crafting",
+                    mc -> DevTestJei.transferCraftingTable(mc, crafting)));
+            steps.add(new MestDevTest.Step("verify crafting grid", 5, null,
+                    mc -> MestDevTest.runOnServer(mc, player -> DevTestJei.verifyTransfer(player, crafting))));
+            steps.add(new MestDevTest.Step("hide crafting grid", 5, null, mc -> runHotkey(mc, "crafting")));
+            steps.add(new MestDevTest.Step("jei transfer to pattern encoding", 20, "mest_07_jei_pattern",
+                    mc -> DevTestJei.transferCraftingTable(mc, encoding)));
+            steps.add(new MestDevTest.Step("verify pattern encoding", 5, null,
+                    mc -> MestDevTest.runOnServer(mc, player -> DevTestJei.verifyTransfer(player, encoding))));
+        }
+        // Every module panel once: toggle it (as its hotkey does), screenshot, toggle it back.
+        for (MestClientModules.Registration module : MestClientModules.all()) {
+            String id = module.id();
+            if (id.equals("me_list")) {
+                continue;
+            }
+            steps.add(new MestDevTest.Step("toggle " + id, 15, "mest_mod_" + id, mc -> runHotkey(mc, id)));
+            steps.add(new MestDevTest.Step("restore " + id, 5, null, mc -> runHotkey(mc, id)));
+        }
+    }
+
+    private static void runHotkey(Minecraft mc, String id) {
+        if (!(mc.screen instanceof MESTScreen screen)) {
+            MestDevTest.log("FAIL no terminal screen for {}, current={}", id, mc.screen);
+            return;
+        }
+        try {
+            Method method = MESTScreen.class.getDeclaredMethod("runHotkey", String.class);
+            method.setAccessible(true);
+            MestDevTest.log("hotkey {} handled={}", id, method.invoke(screen, id));
+        } catch (ReflectiveOperationException e) {
+            MestDevTest.LOGGER.error("MEST-DEVTEST FAIL hotkey {}", id, e);
+        }
+    }
+
+    private static MESTMenu serverMenu(ServerPlayer player) {
+        if (player.containerMenu instanceof MESTMenu menu) {
+            return menu;
+        }
+        MestDevTest.log("FAIL server container is {}", player.containerMenu);
+        return null;
+    }
+
+    /** Four planks → crafting table, encoded without Shift so it auto-uploads to the assembler. */
+    private static void encodeCraftingPattern(ServerPlayer player) {
+        MESTMenu menu = serverMenu(player);
+        if (menu == null) {
+            return;
+        }
+        // The test world is reused, so drop patterns a previous run uploaded (else: duplicate).
+        if (player.serverLevel().getBlockEntity(MestDevTest.base.east()) instanceof PatternProviderBlockEntity provider) {
+            var inv = provider.getLogic().getPatternInv();
+            for (int i = 0; i < inv.size(); i++) {
+                inv.setItemDirect(i, ItemStack.EMPTY);
+            }
+        }
+        menu.setPatternEncodingMode(EncodingMode.CRAFTING);
+        menu.clearPatternEncoding();
+        var grid = menu.getPatternCraftingSlots();
+        for (int i : new int[] { 0, 1, 3, 4 }) {
+            grid[i].set(new ItemStack(Items.OAK_PLANKS));
+        }
+        menu.getBlankPatternSlot().set(AEItems.BLANK_PATTERN.stack(4));
+        menu.encodePattern(false);
+        var encoded = menu.getEncodedPatternSlot().getItem();
+        MestDevTest.log("crafting encode: encodedSlot={} blankLeft={} {}", encoded,
+                menu.getBlankPatternSlot().getItem().getCount(), describePattern(player, encoded));
+        if (player.serverLevel().getBlockEntity(MestDevTest.base.east()) instanceof PatternProviderBlockEntity provider) {
+            var inv = provider.getLogic().getPatternInv();
+            int patterns = 0;
+            String uploaded = "";
+            for (int i = 0; i < inv.size(); i++) {
+                if (!inv.getStackInSlot(i).isEmpty()) {
+                    patterns++;
+                    uploaded = describePattern(player, inv.getStackInSlot(i));
+                }
+            }
+            MestDevTest.log("{} crafting auto-upload: provider holds {} pattern(s) {}",
+                    encoded.isEmpty() && patterns > 0 ? "PASS" : "FAIL", patterns, uploaded);
+        } else {
+            MestDevTest.log("FAIL pattern provider missing at {}", MestDevTest.base.east());
+        }
+    }
+
+    /** One iron ingot → nine nuggets as a processing pattern, Shift so it stays in the slot. */
+    private static void encodeProcessingPattern(ServerPlayer player) {
+        MESTMenu menu = serverMenu(player);
+        if (menu == null) {
+            return;
+        }
+        menu.setPatternEncodingMode(EncodingMode.PROCESSING);
+        menu.clearPatternEncoding();
+        menu.getProcessingInputSlots()[0].set(new ItemStack(Items.IRON_INGOT));
+        menu.getProcessingOutputSlots()[0].set(new ItemStack(Items.IRON_NUGGET, 9));
+        menu.encodePattern(true);
+        var encoded = menu.getEncodedPatternSlot().getItem();
+        var details = PatternDetailsHelper.decodePattern(encoded, player.level());
+        boolean ok = details != null && details.getOutputs().length == 1
+                && details.getOutputs()[0].what().equals(appeng.api.stacks.AEItemKey.of(Items.IRON_NUGGET))
+                && details.getOutputs()[0].amount() == 9;
+        MestDevTest.log("{} processing encode: {}", ok ? "PASS" : "FAIL", describePattern(player, encoded));
+    }
+
+    private static String describePattern(ServerPlayer player, ItemStack stack) {
+        if (stack.isEmpty()) {
+            return "(empty)";
+        }
+        var details = PatternDetailsHelper.decodePattern(stack, player.level());
+        if (details == null) {
+            return "(not a pattern: " + stack + ")";
+        }
+        var in = new StringBuilder();
+        for (var input : details.getInputs()) {
+            in.append(input.getPossibleInputs()[0]).append('x').append(input.getMultiplier()).append(' ');
+        }
+        return "inputs=[" + in.toString().trim() + "] outputs=" + java.util.Arrays.toString(details.getOutputs());
     }
 }

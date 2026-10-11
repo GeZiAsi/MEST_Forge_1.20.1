@@ -156,7 +156,9 @@ dependencies {
     modRuntimeOnly "me.shedaniel.cloth:cloth-config-forge:${cloth_config_version}"
     modRuntimeOnly "dev.architectury:architectury-forge:${architectury_version}"
     if (!gtlModsDir.isPresent()) {
-        modRuntimeOnly "mezz.jei:jei-${minecraft_version}-forge:${jei_version}"
+        // @jar: the Gradle metadata's runtime variant is the unshaded jar, which lacks JEI's
+        // bundled search library; the plain artifact is the shaded release jar.
+        modRuntimeOnly "mezz.jei:jei-${minecraft_version}-forge:${jei_version}@jar"
     }
     modRuntimeOnly "top.theillusivec4.curios:curios-forge:${curios_version}"
 
