@@ -1,4 +1,66 @@
-# ME Spliced Terminal
+# ME Spliced Terminal — Forge 1.20.1 移植版
+
+[中文](#forge-1201-移植版说明) | [English](#forge-1201-port)
+
+> 本分支是 **ME 拼接终端（MEST）** 的 **Forge 1.20.1** 移植版，面向 **GTL（GregTech Leisure）** 整合包。
+>
+> - 原作者：**lhy512103** — 原版仓库（NeoForge 1.21.1）：<https://github.com/lhy512103/MEST>
+> - 移植作者：**格兹亚西** — 移植版源码：<https://github.com/OWNER/MEST/tree/forge-1.20.1>
+> - 许可证：MIT（保留原作者版权声明，见 [LICENSE](LICENSE)）
+
+## Forge 1.20.1 移植版说明
+
+### 运行环境
+
+| 组件 | 版本 |
+| --- | --- |
+| Minecraft / Forge | 1.20.1 / 47.1 及以上 |
+| Applied Energistics 2 | 15.x（按 GTL 使用的 15.4.10 开发） |
+| AE2WTLib | 15.x（15.3.3） |
+| JEI（可选） | 15.19 – 15.49 |
+| ExtendedAE（可选） | 1.20-1.4.x |
+| GTL / gtlcore（可选） | 1.2.2 及以上；精确数量显示需要 1.2.3 及以上 |
+
+把 `mesplicedterminal-*-forge1.20.1.jar` 放进整合包的 `mods` 目录即可。
+
+### 与原版的差异
+
+- **新增：JEI 配方按钮。** 打开拼接终端后查看 JEI 配方，每个配方右侧多两个按钮：工作台图标在终端合成网格里合成（按住 Ctrl 自动下单缺少的材料），样板图标写入样板编码。兼容 JEI 15.19–15.49。
+- **新增：GTL 兼容。** ME 列表显示 gtlcore 超出 long 上限的精确数量；编码时优先通用电路；Ctrl 转移 GT 配方时把不消耗的输入（电路、模具等）编码为虚拟材料。未安装 gtlcore 时这些都不生效。
+- **调整：** 垃圾桶可以拼接进窗口；窗口空间有富余时，拖入的模块直接填进空位；屏幕放不下时面板不再被压到最小尺寸以下而互相重叠；置顶的网络工具面板不再挡住拼接位置。
+- **未移植（1.20.1 / GTL 中不存在或不适用）：** EMI、Some Useless Things、Lightning、导入导出总线面板、ClientSort 兼容；ExtendedAE Plus 的上传目标选择只保留了占位。
+- 与 Inventory Tweaks 一起使用时，会自动移除它加在终端上的整理按钮。
+
+### 构建
+
+需要 JDK 17（项目路径含中文时，Gradle 也必须用 JDK 17 运行）。
+
+```powershell
+.\gradlew.bat build
+```
+
+产物在 `build/libs/`。`runClientDevtest` 会启动一个自动化开发客户端：建测试世界、打开终端、逐项检查并截图到 `run/devtest/screenshots/`；
+`-PmestGtlMods=<GTL 实例的 mods 目录>` 会把本机 GTL 的依赖链加进开发环境，`-PmestDevtestJei=<版本>` 可切换 JEI 版本。
+
+## Forge 1.20.1 port
+
+This branch ports **ME Spliced Terminal (MEST)** to **Forge 1.20.1** for the **GTL (GregTech Leisure)** modpack.
+
+- Original author: **lhy512103** — original NeoForge 1.21.1 repository: <https://github.com/lhy512103/MEST>
+- Port: **格兹亚西** — port source: <https://github.com/OWNER/MEST/tree/forge-1.20.1>
+- License: MIT, original copyright kept (see [LICENSE](LICENSE)).
+
+Requires Forge 47.1+, AE2 15.x and AE2WTLib 15.x; JEI 15.19–15.49, ExtendedAE and gtlcore are optional.
+Additions over the original: craft-in-terminal and encode-pattern buttons beside JEI recipes, GTL
+support (gtlcore precise amounts, universal circuit preference, Ctrl virtual ingredients), a
+spliceable trash, and layout fixes for small screens. EMI, Some Useless Things, Lightning,
+import/export and ClientSort integrations are not ported. Build with JDK 17: `gradlew build`.
+
+---
+
+> 以下是原版（NeoForge 1.21.1）的说明，大部分功能在本移植版中相同；涉及 EMI、NeoForge 等内容以上文的差异说明为准。
+>
+> The rest of this file is the original NeoForge 1.21.1 documentation; see the port notes above for differences.
 
 [English](#english) | [中文](#中文)
 

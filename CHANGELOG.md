@@ -1,5 +1,25 @@
 # Changelog
 
+## v0.0.3.0-forge1.20.1（移植：格兹亚西 / port by 格兹亚西）
+
+### 中文
+
+1. 移植：NeoForge 1.21.1 → Forge 1.20.1（AE2 15、AE2WTLib 15、JEI 15.19–15.49），目标整合包 GTL。
+2. 新增：JEI 配方旁的"在终端合成"和"写入样板编码"按钮。
+3. 新增：GTL 兼容——gtlcore 精确数量显示、通用电路优先、Ctrl 转移时不消耗输入编码为虚拟材料。
+4. 调整：垃圾桶可拼接；拼接时优先填入窗口内的富余空间；窗口不再把面板压到最小尺寸以下。
+5. 修复：滚动条条纹贴图、视图元件列错位、底部面板压到边框、置顶网络工具面板挡住拼接、缩放手柄被外置导轨遮挡、Inventory Tweaks 整理按钮乱飘。
+6. 未移植：EMI、Some Useless Things、Lightning、导入导出、ClientSort 兼容。
+
+### English
+
+1. Ported from NeoForge 1.21.1 to Forge 1.20.1 (AE2 15, AE2WTLib 15, JEI 15.19–15.49) for the GTL modpack.
+2. Added: "craft in terminal" and "encode pattern" buttons beside JEI recipes.
+3. Added: GTL support — gtlcore precise amounts, universal circuit preference, Ctrl virtual ingredients.
+4. Changed: the trash can be spliced; drops fill spare room inside a window; windows never squeeze panels below their minimum.
+5. Fixed: striped scrollbar texture, misaligned view-cell column, bottom panel overlapping the frame, the pinned network-tool panel blocking splices, the resize grip hidden under outside rails, stray Inventory Tweaks sort buttons.
+6. Not ported: EMI, Some Useless Things, Lightning, import/export and ClientSort integrations.
+
 ## v0.0.3.0
 
 ### English
