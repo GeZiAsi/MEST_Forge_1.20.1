@@ -60,13 +60,15 @@ import com.lhy.mest.registry.ModItems;
 public class MestDevTest {
     public static final String MODID = "mestdevtest";
     static final Logger LOGGER = LogUtils.getLogger();
-    private static final String WORLD = "mestdev";
+    // Separate worlds per mod set: loading one saved with the GTL stack without it stops at the
+    // missing-registry prompt.
+    private static final String WORLD = net.minecraftforge.fml.ModList.get().isLoaded("gtlcore") ? "mestdev_gtl" : "mestdev";
 
     private enum Stage { TITLE, WORLD, BUILD, FILL, OPEN, SHOOT, ACTIONS, DONE }
 
     private Stage stage = Stage.TITLE;
     private int ticks;
-    private BlockPos base;
+    static BlockPos base;
     private final List<Step> steps = new ArrayList<>();
     private int stepIndex;
 
@@ -74,8 +76,21 @@ public class MestDevTest {
         if (FMLEnvironment.dist == Dist.CLIENT && Boolean.getBoolean("mest.devtest")) {
             MinecraftForge.EVENT_BUS.addListener(this::onClientTick);
             log("enabled");
+            resetLayout();
             if (Boolean.getBoolean("mest.devtest.quit")) {
                 startWatchdog();
+            }
+        }
+    }
+
+    /** Panel toggles are saved, so start every run from the bundled default layout. */
+    private static void resetLayout() {
+        var dir = net.minecraftforge.fml.loading.FMLPaths.CONFIGDIR.get().resolve("mesplicedterminal");
+        for (String file : new String[] { "layout.json", "presets.json" }) {
+            try {
+                java.nio.file.Files.deleteIfExists(dir.resolve(file));
+            } catch (java.io.IOException e) {
+                log("could not reset {}: {}", file, e);
             }
         }
     }
@@ -265,7 +280,7 @@ public class MestDevTest {
                         .getHolderOrThrow(WorldPresets.FLAT).value().createWorldDimensions());
     }
 
-    private static void runOnServer(Minecraft mc, Consumer<ServerPlayer> work) {
+    static void runOnServer(Minecraft mc, Consumer<ServerPlayer> work) {
         var server = mc.getSingleplayerServer();
         var uuid = mc.player.getUUID();
         server.execute(() -> {
@@ -292,6 +307,8 @@ public class MestDevTest {
                 .setValue(BlockStateProperties.FACING, Direction.UP));
         level.setBlockAndUpdate(base.below(), AEBlocks.DRIVE.block().defaultBlockState());
         level.setBlockAndUpdate(base.east(), AEBlocks.PATTERN_PROVIDER.block().defaultBlockState());
+        // A provider next to an assembler is a crafting container, the target of auto-upload.
+        level.setBlockAndUpdate(base.east().east(), AEBlocks.MOLECULAR_ASSEMBLER.block().defaultBlockState());
         log("network built at {}", base);
     }
 
