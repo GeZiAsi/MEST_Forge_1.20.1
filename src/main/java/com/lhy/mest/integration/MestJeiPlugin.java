@@ -328,6 +328,10 @@ public class MestJeiPlugin implements IModPlugin {
 
             if (doTransfer) {
                 com.lhy.mest.compat.plus.PlusEncodingUpload.captureRecipeSearchKey(rawRecipe);
+                if (kind == MestEncodingHelper.RecipeKind.PROCESSING && Screen.hasControlDown()) {
+                    // GTL: Ctrl turns inputs the machine keeps (circuits, molds) into virtual ones.
+                    inputs = com.lhy.mest.compat.gtl.GtlCompat.virtualiseNotConsumedInputs(rawRecipe, inputs);
+                }
                 MestEncodingHelper.encode(
                         menu,
                         kind,

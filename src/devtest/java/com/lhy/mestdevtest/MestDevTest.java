@@ -74,7 +74,42 @@ public class MestDevTest {
         if (FMLEnvironment.dist == Dist.CLIENT && Boolean.getBoolean("mest.devtest")) {
             MinecraftForge.EVENT_BUS.addListener(this::onClientTick);
             log("enabled");
+            if (Boolean.getBoolean("mest.devtest.quit")) {
+                startWatchdog();
+            }
         }
+    }
+
+    /**
+     * A failed mod load never starts the Forge event bus, so the tick driver cannot dismiss the
+     * error screen or quit; this thread does, and also bounds the whole run.
+     */
+    private static void startWatchdog() {
+        long deadline = System.currentTimeMillis() + Long.getLong("mest.devtest.timeout", 600) * 1000L;
+        Thread watchdog = new Thread(() -> {
+            int errorScreenPolls = 0;
+            while (true) {
+                try {
+                    Thread.sleep(2000);
+                } catch (InterruptedException e) {
+                    return;
+                }
+                Minecraft mc = Minecraft.getInstance();
+                errorScreenPolls = mc != null && mc.screen instanceof LoadingErrorScreen ? errorScreenPolls + 1 : 0;
+                if (errorScreenPolls >= 5) {
+                    LOGGER.error("MEST-DEVTEST FAIL mod loading failed, quitting");
+                    logLoadingProblems((LoadingErrorScreen) mc.screen);
+                    mc.execute(mc::stop);
+                    errorScreenPolls = Integer.MIN_VALUE;
+                }
+                if (System.currentTimeMillis() > deadline) {
+                    LOGGER.error("MEST-DEVTEST FAIL timed out, halting");
+                    Runtime.getRuntime().halt(2);
+                }
+            }
+        }, "MEST devtest watchdog");
+        watchdog.setDaemon(true);
+        watchdog.start();
     }
 
     static void log(String message, Object... args) {

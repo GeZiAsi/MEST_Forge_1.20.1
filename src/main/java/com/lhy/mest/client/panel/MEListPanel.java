@@ -85,6 +85,8 @@ public class MEListPanel extends ModulePanel implements ISortSource {
     private final IConfigManager configSrc;
     private final Repo repo;
     private final List<RepoSlot> repoSlots = new ArrayList<>();
+    private final com.lhy.mest.compat.gtl.GtlTerminalDisplay gtlDisplay =
+            new com.lhy.mest.compat.gtl.GtlTerminalDisplay();
     private final Set<Slot> repoSlotSet = Collections.newSetFromMap(new IdentityHashMap<>());
     private final Scrollbar scrollbar = new Scrollbar(Scrollbar.DEFAULT);
 
@@ -103,6 +105,11 @@ public class MEListPanel extends ModulePanel implements ISortSource {
         this.repo = new Repo(scrollbar, this);
         menu.setClientRepo(this.repo);
         this.repo.setRowSize(cols);
+    }
+
+    /** GTL exact amounts for saturated stacks (see {@link com.lhy.mest.compat.gtl.GtlTerminalDisplay}). */
+    public com.lhy.mest.compat.gtl.GtlTerminalDisplay gtlDisplay() {
+        return gtlDisplay;
     }
 
     public Repo repo() {
@@ -275,6 +282,7 @@ public class MEListPanel extends ModulePanel implements ISortSource {
         // AE2 15: RepoSlot only exposes entries while the repo is marked powered.
         repo.setPower(menu.isLinked());
         repo.setPaused(paused);
+        gtlDisplay.update(menu, repo);
         layoutChrome();
         updateExternalSearch();
         updateScrollbar();
@@ -380,7 +388,7 @@ public class MEListPanel extends ModulePanel implements ISortSource {
         if (craftable && (isViewOnlyCraftable() || storedAmount <= 0)) {
             StackSizeRenderer.renderSizeLabel(g, font, slotScreenX(slot), slotScreenY(slot), "+");
         } else {
-            String text = entry.getWhat().formatAmount(storedAmount, AmountFormat.SLOT);
+            String text = gtlDisplay.formatAmount(entry.getWhat(), storedAmount, AmountFormat.SLOT);
             StackSizeRenderer.renderSizeLabel(g, font, slotScreenX(slot), slotScreenY(slot), text, false);
             if (craftable) {
                 StackSizeRenderer.renderSizeLabel(g, font, slotScreenX(slot) - 11, slotScreenY(slot) - 11, "+", false);
