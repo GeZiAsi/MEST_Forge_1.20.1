@@ -10,18 +10,18 @@ issueTrackerURL="${mod_issues_url}"
 modId="${mod_id}"
 version="${mod_version}"
 displayName="${mod_name}"
-authors="lhy512103（原作者 / original author），格兹亚西（Forge 1.20.1 移植 / port）"
-credits="Forge 1.20.1 与 GTL 整合包移植：格兹亚西。AE2WTLib 图标 by mari_023 (MIT)。"
-displayURL="${mod_source_url}"
+authors="原作者 lhy512103 · 移植作者 GeZiAsi"
+credits="Forge 1.20.1 / GTL 移植：GeZiAsi（格兹亚西）。AE2WTLib 图标 by mari_023 (MIT)。"
+displayURL="${mod_original_url}"
 description='''
-ME 拼接终端：可拖拽、可拼接的 AE2 无线终端。把 ME 列表、合成、样板编码、样板管理、样板缓存、垃圾桶、工具包等模块放进同一个可自由排布的工作区。
-本版本为 Forge 1.20.1 移植版，适配 GTL（GregTech Leisure）整合包：AE2 15、AE2WTLib 15、JEI 15.19+。
+原作者：lhy512103 — ${mod_original_url}
+移植作者：GeZiAsi（格兹亚西）
+游戏版本：Minecraft ${minecraft_version} · Forge ${forge_version_range}
 
-A spliceable, drag-and-drop ME terminal that unifies AE2 wireless terminal modules into one customizable, file-manager-style workspace.
-This is the Forge 1.20.1 port for the GTL (GregTech Leisure) modpack.
+ME 拼接终端：可拖拽、可拼接的 AE2 无线终端。把 ME 列表、合成、样板编码、样板管理、样板缓存、垃圾桶、工具包等模块放进同一个可自由排布的工作区。适配 GTL（GregTech Leisure）整合包：AE2 15、AE2WTLib 15、JEI 15.19+。
 
-原作者 / Original: lhy512103 — ${mod_original_url}
-移植 / Port: 格兹亚西
+A spliceable, drag-and-drop ME terminal that unifies AE2 wireless terminal modules into one customizable workspace. Forge 1.20.1 port for the GTL modpack.
+Original author: lhy512103. Port: GeZiAsi.
 '''
 
 [[dependencies.${mod_id}]]

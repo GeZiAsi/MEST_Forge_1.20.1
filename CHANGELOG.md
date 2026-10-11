@@ -1,6 +1,6 @@
 # Changelog
 
-## v0.0.3.0-forge1.20.1（移植：格兹亚西 / port by 格兹亚西）
+## v0.0.3.0-forge1.20.1（移植：GeZiAsi / port by GeZiAsi）
 
 ### 中文
 
