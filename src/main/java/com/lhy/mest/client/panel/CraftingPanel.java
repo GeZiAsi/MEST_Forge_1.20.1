@@ -50,12 +50,12 @@ public class CraftingPanel extends ModulePanel {
             registerSlot(slot);
         }
 
-        clearToNetwork = new ActionButton(ActionItems.S_STASH, menu::clearCraftingGrid);
+        clearToNetwork = new ActionButton(ActionItems.STASH, menu::clearCraftingGrid);
         clearToNetwork.setHalfSize(true);
         clearToNetwork.setDisableBackground(true);
         widgets.add(clearToNetwork);
 
-        clearToPlayer = new ActionButton(ActionItems.S_STASH_TO_PLAYER_INV, menu::clearToPlayerInventory);
+        clearToPlayer = new ActionButton(ActionItems.STASH_TO_PLAYER_INV, menu::clearToPlayerInventory);
         clearToPlayer.setHalfSize(true);
         clearToPlayer.setDisableBackground(true);
         widgets.add(clearToPlayer);

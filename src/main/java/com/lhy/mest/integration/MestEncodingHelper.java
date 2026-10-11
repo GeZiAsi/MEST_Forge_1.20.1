@@ -15,14 +15,13 @@ import org.jetbrains.annotations.Nullable;
 import net.minecraft.core.NonNullList;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.Recipe;
-import net.minecraft.world.item.crafting.RecipeHolder;
 import net.minecraft.world.item.crafting.RecipeType;
-import net.neoforged.neoforge.network.PacketDistributor;
 
 import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.AEKey;
 import appeng.api.stacks.GenericStack;
-import appeng.core.network.serverbound.InventoryActionPacket;
+import appeng.core.sync.network.NetworkHandler;
+import appeng.core.sync.packets.InventoryActionPacket;
 import appeng.helpers.InventoryAction;
 import appeng.menu.me.common.GridInventoryEntry;
 import appeng.menu.slot.FakeSlot;
@@ -120,7 +119,7 @@ public final class MestEncodingHelper {
     public static void encode(
             MESTMenu menu,
             RecipeKind kind,
-            @Nullable RecipeHolder<?> recipe,
+            @Nullable Recipe<?> recipe,
             List<List<GenericStack>> craftingIngredients,
             List<List<GenericStack>> processingInputs,
             List<GenericStack> processingOutputs,
@@ -147,13 +146,13 @@ public final class MestEncodingHelper {
 
     private static void encodeCraftingRecipe(
             MESTMenu menu,
-            @Nullable RecipeHolder<?> recipe,
+            @Nullable Recipe<?> recipe,
             List<List<GenericStack>> genericIngredients,
             Predicate<ItemStack> visiblePredicate) {
-        if (recipe != null && recipe.value().getType() == RecipeType.STONECUTTING) {
+        if (recipe != null && recipe.getType() == RecipeType.STONECUTTING) {
             menu.setPatternEncodingMode(EncodingMode.STONECUTTING);
-            menu.setStonecuttingRecipeId(recipe.id());
-        } else if (recipe != null && recipe.value().getType() == RecipeType.SMITHING) {
+            menu.setStonecuttingRecipeId(recipe.getId());
+        } else if (recipe != null && recipe.getType() == RecipeType.SMITHING) {
             menu.setPatternEncodingMode(EncodingMode.SMITHING_TABLE);
         } else {
             menu.setPatternEncodingMode(EncodingMode.CRAFTING);
@@ -163,7 +162,7 @@ public final class MestEncodingHelper {
         var encodedInputs = NonNullList.withSize(menu.getPatternCraftingSlots().length, ItemStack.EMPTY);
 
         if (recipe != null) {
-            var ingredients3x3 = CraftingRecipeUtil.ensure3by3CraftingMatrix(recipe.value());
+            var ingredients3x3 = CraftingRecipeUtil.ensure3by3CraftingMatrix(recipe);
             for (int slot = 0; slot < ingredients3x3.size() && slot < encodedInputs.size(); slot++) {
                 var ingredient = ingredients3x3.get(slot);
                 if (ingredient.isEmpty()) {
@@ -227,7 +226,7 @@ public final class MestEncodingHelper {
     }
 
     private static void setFilter(FakeSlot slot, ItemStack stack) {
-        PacketDistributor.sendToServer(new InventoryActionPacket(InventoryAction.SET_FILTER, slot.index, stack));
+        NetworkHandler.instance().sendToServer(new InventoryActionPacket(InventoryAction.SET_FILTER, slot.index, stack));
     }
 
     private static GenericStack findBestIngredient(

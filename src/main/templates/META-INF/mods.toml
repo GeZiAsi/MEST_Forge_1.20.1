@@ -1,0 +1,62 @@
+# Mod metadata. Properties in ${} are expanded from gradle.properties by the
+# generateModMetadata task (see build.gradle).
+
+modLoader="javafml"
+loaderVersion="${loader_version_range}"
+license="${mod_license}"
+
+[[mods]]
+modId="${mod_id}"
+version="${mod_version}"
+displayName="${mod_name}"
+authors="lhy"
+description='''
+A spliceable, drag-and-drop ME terminal that unifies AE2 wireless terminal modules into one customizable, file-manager-style workspace.
+'''
+
+[[dependencies.${mod_id}]]
+    modId="forge"
+    mandatory=true
+    versionRange="${forge_version_range}"
+    ordering="NONE"
+    side="BOTH"
+
+[[dependencies.${mod_id}]]
+    modId="minecraft"
+    mandatory=true
+    versionRange="${minecraft_version_range}"
+    ordering="NONE"
+    side="BOTH"
+
+# Applied Energistics 2 — required, this mod builds on its terminal/grid system.
+[[dependencies.${mod_id}]]
+    modId="ae2"
+    mandatory=true
+    versionRange="[15.2,16)"
+    ordering="AFTER"
+    side="BOTH"
+
+# AE2 Wireless Terminal Library — required, provides the wireless terminal framework we integrate.
+[[dependencies.${mod_id}]]
+    modId="ae2wtlib"
+    mandatory=true
+    versionRange="[15.2,16)"
+    ordering="AFTER"
+    side="BOTH"
+
+# JEI — optional recipe viewer. When present, the MEST JEI plugin registers a crafting-matrix
+# transfer handler so the JEI "+" button fills the MEST crafting grid.
+[[dependencies.${mod_id}]]
+    modId="jei"
+    mandatory=false
+    versionRange="[15,)"
+    ordering="AFTER"
+    side="CLIENT"
+
+# ExtendedAE — optional. Pattern-access rows reuse its highlight and message helpers.
+[[dependencies.${mod_id}]]
+    modId="expatternprovider"
+    mandatory=false
+    versionRange="[1.4,)"
+    ordering="AFTER"
+    side="BOTH"

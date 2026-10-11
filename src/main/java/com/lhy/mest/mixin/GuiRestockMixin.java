@@ -7,7 +7,6 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Gui;
 import net.minecraft.client.gui.GuiGraphics;
@@ -16,13 +15,14 @@ import net.minecraft.world.item.ItemStack;
 
 import appeng.util.ReadableNumberConverter;
 
-import de.mari_023.ae2wtlib.api.AE2wtlibComponents;
+import de.mari_023.ae2wtlib.AE2wtlibTags;
+import de.mari_023.ae2wtlib.terminal.ItemWT;
 import de.mari_023.ae2wtlib.wct.CraftingTerminalHandler;
 
 import com.lhy.mest.client.MestRestockClient;
 import com.lhy.mest.compat.MestWtlibSupport;
 
-/** Same hotbar overlay as wtlib GuiMixin, but for the spliced terminal. */
+/** Same hotbar overlay as wtlib's RestockRender, but for the spliced terminal. */
 @Mixin(Gui.class)
 public class GuiRestockMixin {
     @Final
@@ -30,7 +30,7 @@ public class GuiRestockMixin {
     private Minecraft minecraft;
 
     @Inject(
-            method = "renderSlot(Lnet/minecraft/client/gui/GuiGraphics;IILnet/minecraft/client/DeltaTracker;Lnet/minecraft/world/entity/player/Player;Lnet/minecraft/world/item/ItemStack;I)V",
+            method = "renderSlot",
             at = @At(
                     value = "INVOKE",
                     target = "Lnet/minecraft/client/gui/GuiGraphics;renderItemDecorations(Lnet/minecraft/client/gui/Font;Lnet/minecraft/world/item/ItemStack;II)V"),
@@ -40,7 +40,7 @@ public class GuiRestockMixin {
             GuiGraphics guiGraphics,
             int x,
             int y,
-            DeltaTracker deltaTracker,
+            float partialTick,
             Player player,
             ItemStack stack,
             int seed,
@@ -49,11 +49,11 @@ public class GuiRestockMixin {
             return;
         }
         CraftingTerminalHandler wct = CraftingTerminalHandler.getCraftingTerminalHandler(minecraft.player);
-        if (wct.isRestockEnabled()) {
+        if (ItemWT.getBoolean(wct.getCraftingTerminal(), AE2wtlibTags.RESTOCK)) {
             return;
         }
         ItemStack mest = MestWtlibSupport.mestStack(minecraft.player);
-        if (mest.isEmpty() || !mest.getOrDefault(AE2wtlibComponents.RESTOCK, false)) {
+        if (mest.isEmpty() || !ItemWT.getBoolean(mest, AE2wtlibTags.RESTOCK)) {
             return;
         }
         if (stack.getCount() == 1 || !MestRestockClient.isRestockAble(stack)) {

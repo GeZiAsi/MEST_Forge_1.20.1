@@ -2,7 +2,6 @@ package com.lhy.mest.client;
 
 import com.mojang.blaze3d.systems.RenderSystem;
 
-import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.player.LocalPlayer;
@@ -16,23 +15,22 @@ import com.lhy.mest.terminal.ToolkitBarState;
 import com.lhy.mest.terminal.ToolkitBarState.Bar;
 
 /**
- * Draws the toolkit quick bars beside the vanilla hotbar, using the same {@code hud/hotbar} sprite.
+ * Draws the toolkit quick bars beside the vanilla hotbar, using the same {@code widgets.png} hotbar art.
  *
  * <p>Left bar maps toolkit slots 0-8, right bar maps 9-17. Together with the vanilla hotbar they
  * form a 27-cell cycle: left → center → right. Extra bars always draw toolkit cells; the vanilla
  * hotbar is never replaced.
  *
- * <p>Geometry mirrors {@code Gui#renderItemHotbar}: the vanilla sprite is 182px wide for nine 20px
+ * <p>Geometry mirrors {@code Gui#renderHotbar}: the vanilla hotbar is 182px wide for nine 20px
  * cells with a 3px item inset, so the bar width must stay {@code slot * 9 + 2}. Drawing it any
  * wider stretches the cell borders away from the item positions. The 29px offhand well is only
  * reserved on the side vanilla actually draws it, which keeps both bars evenly spaced from the
  * hotbar when the offhand is empty.
  */
 public final class ToolkitBarHud {
-    private static final ResourceLocation HOTBAR_SPRITE =
-            ResourceLocation.withDefaultNamespace("hud/hotbar");
-    private static final ResourceLocation SELECTION_SPRITE =
-            ResourceLocation.withDefaultNamespace("hud/hotbar_selection");
+    private static final ResourceLocation WIDGETS = new ResourceLocation("textures/gui/widgets.png");
+    private static final int HOTBAR_TEXTURE_WIDTH = 182;
+    private static final int SELECTION_TEXTURE_WIDTH = 24;
     /** Vanilla cell pitch and the item inset inside a cell. */
     public static final int SLOT = 20;
     public static final int ITEM_INSET = 3;
@@ -40,7 +38,7 @@ public final class ToolkitBarHud {
     /** Smallest cell pitch we still consider usable before the bars would collide with the hotbar. */
     private static final int MIN_SLOT = 12;
     private static final int BAR_HEIGHT = 22;
-    private static final int SELECTION_HEIGHT = 23;
+    private static final int SELECTION_HEIGHT = 22;
     private static final int HOTBAR_HALF = 91;
     private static final int OFFHAND_WIDTH = 29;
     /** Gap between the hotbar frame and a toolkit bar, matching the selection sprite's overhang. */
@@ -48,7 +46,7 @@ public final class ToolkitBarHud {
 
     private ToolkitBarHud() {}
 
-    public static void render(GuiGraphics g, DeltaTracker deltaTracker) {
+    public static void render(GuiGraphics g, float partialTick) {
         Minecraft minecraft = Minecraft.getInstance();
         LocalPlayer player = minecraft.player;
         if (player == null || minecraft.options.hideGui || minecraft.screen != null) {
@@ -173,9 +171,11 @@ public final class ToolkitBarHud {
         g.pose().pushPose();
         try {
             g.pose().translate(0.0F, 0.0F, -90.0F);
-            g.blitSprite(HOTBAR_SPRITE, x, y, barWidth(slot), BAR_HEIGHT);
+            g.blit(WIDGETS, x, y, barWidth(slot), BAR_HEIGHT,
+                    0, 0, HOTBAR_TEXTURE_WIDTH, BAR_HEIGHT, 256, 256);
             if (selected) {
-                g.blitSprite(SELECTION_SPRITE, x - 1 + selectedSlot * slot, y - 1, slot + 4, SELECTION_HEIGHT);
+                g.blit(WIDGETS, x - 1 + selectedSlot * slot, y - 1, slot + 4, SELECTION_HEIGHT,
+                        0, 22, SELECTION_TEXTURE_WIDTH, SELECTION_HEIGHT, 256, 256);
             }
         } finally {
             g.pose().popPose();

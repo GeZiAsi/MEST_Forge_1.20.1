@@ -2,21 +2,18 @@ package com.lhy.mest.terminal;
 
 import java.util.List;
 
-import net.minecraft.core.component.DataComponentType;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.component.ItemContainerContents;
 
 import appeng.api.inventories.InternalInventory;
 
-import de.mari_023.ae2wtlib.api.AE2wtlibAPI;
+import de.mari_023.ae2wtlib.wut.ItemWUT;
+import de.mari_023.ae2wtlib.wut.WUTHandler;
 
 import com.lhy.mest.compat.MestWtlibSupport;
 import com.lhy.mest.network.ToolkitBarSyncPacket;
-import com.lhy.mest.registry.ModAttachments;
-import com.lhy.mest.registry.ModComponents;
 import com.lhy.mest.registry.ModItems;
 
 /**
@@ -25,7 +22,7 @@ import com.lhy.mest.registry.ModItems;
  * <p>{@code Inventory.items[0..8]} never moves. Selecting an extra bar only changes which toolkit
  * cell {@code Inventory.getSelected} reports, so vanilla hotbar interaction stays intact.
  *
- * <p>All toolkit state lives on the player ({@link ModAttachments#TOOLKIT}); a carried terminal is
+ * <p>All toolkit state lives on the player ({@link ToolkitDataHolder}); a carried terminal is
  * only required to use it.
  */
 public final class ToolkitBarState {
@@ -42,7 +39,7 @@ public final class ToolkitBarState {
     private ToolkitBarState() {}
 
     public static ToolkitInternalInventory data(Player player) {
-        return player.getData(ModAttachments.TOOLKIT);
+        return ((ToolkitDataHolder) player).mest$toolkit();
     }
 
     public static Bar getBar(Player player) {
@@ -175,11 +172,11 @@ public final class ToolkitBarState {
             return PickMatch.NONE;
         }
         if (isToolkitSelected(player)
-                && ItemStack.isSameItemSameComponents(selectedStack(player), stack)) {
+                && ItemStack.isSameItemSameTags(selectedStack(player), stack)) {
             return PickMatch.TOOLKIT;
         }
         for (int index = 0; index < VISIBLE_TOOLKIT_SLOTS; index++) {
-            if (ItemStack.isSameItemSameComponents(stackAt(player, index), stack)) {
+            if (ItemStack.isSameItemSameTags(stackAt(player, index), stack)) {
                 setSelection(player, index < BAR_SLOTS ? Bar.LEFT : Bar.RIGHT, index % BAR_SLOTS);
                 return PickMatch.TOOLKIT;
             }
@@ -245,20 +242,10 @@ public final class ToolkitBarState {
         return false;
     }
 
-    /** Server tick: hand over legacy terminal data and push changed cells to the client. */
+    /** Server tick: return overflow cells and push changed cells to the client. */
     public static void tick(ServerPlayer player) {
         data(player).returnOverflow();
-        if (player.tickCount % 20 == 0) {
-            scanTerminals(player, true);
-        }
         ToolkitBarSyncPacket.send(player);
-    }
-
-    /** Hand over a legacy terminal right away, e.g. when it is opened. */
-    public static void migrateNow(Player player, ItemStack terminal) {
-        if (!player.level().isClientSide() && isTerminalCarrier(terminal)) {
-            migrateLegacy(player, terminal);
-        }
     }
 
     public static void applyClientSync(Player player, List<ItemStack> visible, ToolkitBarSyncPacket.Settings settings) {
@@ -269,80 +256,21 @@ public final class ToolkitBarState {
         return index >= 0 && index < VISIBLE_TOOLKIT_SLOTS;
     }
 
-    /**
-     * @param migrate also move legacy per-terminal toolkit data onto the player (server only)
-     * @return whether any terminal is carried
-     */
-    static boolean scanTerminals(Player player, boolean migrate) {
-        boolean found = false;
+    /** @return whether any terminal is carried */
+    static boolean scanTerminals(Player player) {
         Inventory inventory = player.getInventory();
         for (int i = 0; i < inventory.getContainerSize(); i++) {
-            ItemStack stack = inventory.getItem(i);
-            if (isTerminalCarrier(stack)) {
-                if (!migrate) {
-                    return true;
-                }
-                found = true;
-                migrateLegacy(player, stack);
-            }
-        }
-        ItemStack located = MestWtlibSupport.mestStack(player);
-        if (isTerminalCarrier(located)) {
-            found = true;
-            if (migrate) {
-                migrateLegacy(player, located);
-            }
-        }
-        return found;
-    }
-
-    /**
-     * Terminals used to carry the toolkit. Their contents are merged into the player's toolkit and
-     * the components removed in the same step, so every legacy item is handed over exactly once.
-     */
-    private static void migrateLegacy(Player player, ItemStack terminal) {
-        if (!hasAnyLegacy(terminal)) {
-            return;
-        }
-        ToolkitInternalInventory data = data(player);
-        ItemContainerContents items = terminal.getOrDefault(
-                ModComponents.TOOLKIT_INV.get(), ItemContainerContents.EMPTY);
-        ItemContainerContents memory = terminal.getOrDefault(
-                ModComponents.TOOLKIT_MEMORY.get(), ItemContainerContents.EMPTY);
-        boolean bar = terminal.getOrDefault(ModComponents.TOOLKIT_BAR.get(), false);
-        boolean quickMove = terminal.getOrDefault(ModComponents.TOOLKIT_QUICK_MOVE.get(), true);
-        terminal.remove(ModComponents.TOOLKIT_INV.get());
-        terminal.remove(ModComponents.TOOLKIT_MEMORY.get());
-        terminal.remove(ModComponents.TOOLKIT_BAR.get());
-        terminal.remove(ModComponents.TOOLKIT_BAR_PAGE.get());
-        terminal.remove(ModComponents.TOOLKIT_QUICK_MOVE.get());
-
-        int slots = Math.max(items.getSlots(), memory.getSlots());
-        for (int i = 0; i < slots; i++) {
-            data.mergeLegacy(i,
-                    i < items.getSlots() ? items.getStackInSlot(i) : ItemStack.EMPTY,
-                    i < memory.getSlots() ? memory.getStackInSlot(i) : ItemStack.EMPTY);
-        }
-        data.mergeLegacySettings(bar, quickMove);
-        player.getInventory().setChanged();
-    }
-
-    private static boolean hasAnyLegacy(ItemStack terminal) {
-        for (DataComponentType<?> type : List.of(
-                ModComponents.TOOLKIT_INV.get(),
-                ModComponents.TOOLKIT_MEMORY.get(),
-                ModComponents.TOOLKIT_BAR.get(),
-                ModComponents.TOOLKIT_BAR_PAGE.get(),
-                ModComponents.TOOLKIT_QUICK_MOVE.get())) {
-            if (terminal.has(type)) {
+            if (isTerminalCarrier(inventory.getItem(i))) {
                 return true;
             }
         }
-        return false;
+        return isTerminalCarrier(MestWtlibSupport.mestStack(player));
     }
 
     public static boolean isTerminalCarrier(ItemStack stack) {
         return !stack.isEmpty()
-                && (stack.is(ModItems.SPLICED_TERMINAL.get()) || AE2wtlibAPI.isUniversalTerminal(stack));
+                && (stack.is(ModItems.SPLICED_TERMINAL.get())
+                        || stack.getItem() instanceof ItemWUT
+                                && WUTHandler.hasTerminal(stack, MestTerminal.TERMINAL_NAME));
     }
 }

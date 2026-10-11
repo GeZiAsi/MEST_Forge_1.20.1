@@ -17,14 +17,15 @@ import net.minecraft.Util;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.fml.loading.FMLPaths;
-import net.neoforged.neoforge.client.event.InputEvent;
-import net.neoforged.neoforge.network.PacketDistributor;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.fml.loading.FMLPaths;
+import net.minecraftforge.client.event.InputEvent;
 
-import appeng.core.network.serverbound.HotkeyPacket;
+import appeng.client.Hotkeys;
+import appeng.core.sync.network.NetworkHandler;
+import appeng.core.sync.packets.HotkeyPacket;
 
 import com.lhy.mest.MESplicedterminal;
 import com.lhy.mest.terminal.MestTerminal;
@@ -97,9 +98,13 @@ public final class PanelHotkeys {
             return;
         }
         bindings().match(event.getKey(), event.getModifiers(), true).ifPresent(moduleId -> {
+            var hotkey = Hotkeys.getHotkeyMapping(MestTerminal.HOTKEY_NAME);
+            if (hotkey == null) {
+                return;
+            }
             pendingModuleId = moduleId;
             pendingSince = Util.getMillis();
-            PacketDistributor.sendToServer(new HotkeyPacket(MestTerminal.HOTKEY_NAME));
+            NetworkHandler.instance().sendToServer(new HotkeyPacket(hotkey));
         });
     }
 

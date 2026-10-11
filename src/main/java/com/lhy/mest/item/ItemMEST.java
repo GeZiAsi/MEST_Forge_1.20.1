@@ -1,7 +1,6 @@
 package com.lhy.mest.item;
 
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -9,11 +8,9 @@ import net.minecraft.world.item.ItemStack;
 import appeng.api.upgrades.IUpgradeInventory;
 import appeng.api.upgrades.UpgradeInventories;
 import appeng.api.upgrades.Upgrades;
-import appeng.menu.locator.ItemMenuHostLocator;
 
-import de.mari_023.ae2wtlib.api.terminal.ItemWT;
+import de.mari_023.ae2wtlib.terminal.ItemWT;
 
-import com.lhy.mest.registry.ModItems;
 import com.lhy.mest.registry.ModMenus;
 
 /**
@@ -22,11 +19,11 @@ import com.lhy.mest.registry.ModMenus;
  * hotkey locating and universal-terminal merging for free.
  */
 public class ItemMEST extends ItemWT {
-    private static final String DESCRIPTION_ID = "item.mesplicedterminal.spliced_terminal";
+    public static final String DESCRIPTION_ID = "item.mesplicedterminal.spliced_terminal";
 
     /**
      * Fixed instead of derived from the registry name: AE2WTLib reads it while registering the
-     * terminal, before this item is registered, and vanilla would cache "item.minecraft.air" then.
+     * terminal, and vanilla would otherwise cache a description id derived too early.
      */
     @Override
     public String getDescriptionId() {
@@ -34,7 +31,7 @@ public class ItemMEST extends ItemWT {
     }
 
     @Override
-    public MenuType<?> getMenuType(ItemMenuHostLocator locator, Player player) {
+    public MenuType<?> getMenuType(ItemStack stack) {
         return ModMenus.SPLICED_TERMINAL_MENU.get();
     }
 
@@ -51,7 +48,7 @@ public class ItemMEST extends ItemWT {
 
     private static int compatibleUpgradeTotal() {
         try {
-            Item terminal = ModItems.SPLICED_TERMINAL.get();
+            Item terminal = com.lhy.mest.registry.ModItems.SPLICED_TERMINAL.get();
             int total = 0;
             for (Item card : BuiltInRegistries.ITEM) {
                 int max = Upgrades.getMaxInstallable(card, terminal);

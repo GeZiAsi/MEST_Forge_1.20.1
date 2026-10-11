@@ -5,12 +5,8 @@ import org.jetbrains.annotations.Nullable;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.component.ItemContainerContents;
 
 import appeng.api.inventories.InternalInventory;
-import appeng.items.contents.NetworkToolMenuHost;
-import appeng.menu.locator.ItemMenuHostLocator;
-import appeng.menu.locator.MenuLocators;
 import appeng.menu.slot.AppEngSlot;
 import appeng.util.inv.AppEngInternalInventory;
 import appeng.util.inv.InternalInventoryHost;
@@ -18,7 +14,6 @@ import appeng.util.inv.InternalInventoryHost;
 import com.lhy.mest.compat.MestWtlibSupport;
 import com.lhy.mest.config.MestConfig;
 import com.lhy.mest.item.ItemMEST;
-import com.lhy.mest.registry.ModComponents;
 
 /** Live network-toolkit inventory stored on the spliced terminal the player is carrying. */
 public final class MestNetworkToolkitAccess {
@@ -47,47 +42,49 @@ public final class MestNetworkToolkitAccess {
      */
     @Nullable
     public static InternalInventory inventoryOf(Player player) {
-        ItemMenuHostLocator locator = MestWtlibSupport.findMest(player);
-        ItemStack stack = locator != null ? locator.locateItem(player) : ItemStack.EMPTY;
+        ItemStack stack = MestWtlibSupport.mestStack(player);
         if (!(stack.getItem() instanceof ItemMEST)) {
-            locator = null;
             stack = ItemStack.EMPTY;
             for (int slot = 0; slot < player.getInventory().getContainerSize(); slot++) {
                 ItemStack candidate = player.getInventory().getItem(slot);
                 if (candidate.getItem() instanceof ItemMEST) {
-                    locator = MenuLocators.forInventorySlot(slot);
                     stack = candidate;
                     break;
                 }
             }
         }
-        if (locator == null || stack.isEmpty()) {
+        if (stack.isEmpty()) {
             return null;
         }
-        TerminalToolboxInventory inventory = new TerminalToolboxInventory(
-                new TerminalHost(player, locator), MestConfig.networkToolkitSlots());
+        TerminalHost host = new TerminalHost(player, stack);
+        TerminalToolboxInventory inventory = new TerminalToolboxInventory(host, MestConfig.networkToolkitSlots());
+        host.inventory = inventory;
         inventory.setEnableClientEvents(true);
-        inventory.fromItemContainerContents(
-                stack.getOrDefault(ModComponents.NETWORK_TOOLKIT_INV.get(), ItemContainerContents.EMPTY));
+        if (stack.getTag() != null && stack.getTag().contains(MESTMenuHost.TAG_NETWORK_TOOLKIT)) {
+            inventory.readFromNBT(stack.getTag(), MESTMenuHost.TAG_NETWORK_TOOLKIT);
+        }
         return inventory;
     }
 
-    /**
-     * Network-tool host wrapping {@link #inventoryOf} so memory-card restore and
-     * {@code findNetworkToolInv} can use the terminal toolkit when no vanilla tool is carried.
-     */
-    @Nullable
-    public static NetworkToolMenuHost<?> menuHostOf(Player player) {
-        return MestTerminalNetworkToolHost.create(player);
-    }
+    private static final class TerminalHost implements InternalInventoryHost {
+        private final Player player;
+        private final ItemStack stack;
+        private AppEngInternalInventory inventory;
 
-    private record TerminalHost(Player player, ItemMenuHostLocator locator) implements InternalInventoryHost {
+        private TerminalHost(Player player, ItemStack stack) {
+            this.player = player;
+            this.stack = stack;
+        }
+
         @Override
-        public void saveChangedInventory(AppEngInternalInventory inv) {
-            ItemStack stack = locator.locateItem(player);
-            if (!stack.isEmpty()) {
-                stack.set(ModComponents.NETWORK_TOOLKIT_INV.get(), inv.toItemContainerContents());
+        public void saveChanges() {
+            if (inventory != null) {
+                inventory.writeToNBT(stack.getOrCreateTag(), MESTMenuHost.TAG_NETWORK_TOOLKIT);
             }
+        }
+
+        @Override
+        public void onChangeInventory(InternalInventory inv, int slot) {
         }
 
         @Override

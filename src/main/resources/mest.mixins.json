@@ -2,15 +2,17 @@
   "required": true,
   "minVersion": "0.8",
   "package": "com.lhy.mest.mixin",
-  "compatibilityLevel": "JAVA_21",
+  "plugin": "com.lhy.mest.mixin.MestMixinPlugin",
+  "compatibilityLevel": "JAVA_17",
+  "refmap": "mest.refmap.json",
   "mixins": [
     "RemoteMenuMixin",
     "ToolkitInventoryMixin",
     "ToolkitPlayerMixin",
+    "ToolkitPlayerDataMixin",
     "ToolkitMenuLocatorsMixin",
     "ToolkitDropMixin",
     "ToolboxMenuMixin",
-    "NetworkToolFindMixin",
     "AEBaseMenuAccessor"
   ],
   "client": [

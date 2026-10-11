@@ -22,9 +22,9 @@ import appeng.client.gui.widgets.ActionButton;
 import appeng.client.gui.widgets.ITooltip;
 import appeng.menu.SlotSemantics;
 
-import de.mari_023.ae2wtlib.api.TextConstants;
-import de.mari_023.ae2wtlib.api.gui.AE2wtlibSlotSemantics;
-import de.mari_023.ae2wtlib.api.gui.Icon;
+import de.mari_023.ae2wtlib.TextConstants;
+import de.mari_023.ae2wtlib.AE2wtlibSlotSemantics;
+import com.lhy.mest.client.wt.Icon;
 import de.mari_023.ae2wtlib.wct.magnet_card.MagnetMode;
 
 import com.lhy.mest.MESplicedterminal;
@@ -47,7 +47,7 @@ public class CraftingTerminalPanel extends ModulePanel {
     private static final int PANEL_BUTTON = 16;
     static final int SEARCH_BUTTON = 12;
     private static final Blitter BACKGROUND = Blitter.texture(
-                    ResourceLocation.fromNamespaceAndPath(MESplicedterminal.MODID, "textures/guis/crafting_terminal.png"),
+                    new ResourceLocation(MESplicedterminal.MODID, "textures/guis/crafting_terminal.png"),
                     256, 256)
             .src(0, 0, TEX_W, TEX_H);
 
@@ -84,12 +84,12 @@ public class CraftingTerminalPanel extends ModulePanel {
         registerAll(bootsSlots);
         registerAll(offhandSlots);
 
-        clearToNetwork = new ActionButton(ActionItems.S_STASH, menu::clearCraftingGrid);
+        clearToNetwork = new ActionButton(ActionItems.STASH, menu::clearCraftingGrid);
         clearToNetwork.setHalfSize(true);
         clearToNetwork.setDisableBackground(true);
         widgets.add(clearToNetwork);
 
-        clearToPlayer = new ActionButton(ActionItems.S_STASH_TO_PLAYER_INV, menu::clearToPlayerInventory);
+        clearToPlayer = new ActionButton(ActionItems.STASH_TO_PLAYER_INV, menu::clearToPlayerInventory);
         clearToPlayer.setHalfSize(true);
         clearToPlayer.setDisableBackground(true);
         widgets.add(clearToPlayer);
@@ -314,8 +314,8 @@ public class CraftingTerminalPanel extends ModulePanel {
             Icon bg = isHovered() ? Icon.BUTTON_BACKGROUND_HOVERED
                     : isFocused() ? Icon.BUTTON_BACKGROUND_FOCUSED
                     : Icon.BUTTON_BACKGROUND;
-            bg.getBlitter().dest(getX(), getY() + yOffset, getWidth(), getHeight()).zOffset(2).blit(guiGraphics);
-            icon.getBlitter().dest(getX(), getY() + yOffset, getWidth(), getHeight()).zOffset(3).blit(guiGraphics);
+            bg.getBlitter().dest(getX(), getY() + yOffset, getWidth(), getHeight()).blit(guiGraphics);
+            icon.getBlitter().dest(getX(), getY() + yOffset, getWidth(), getHeight()).blit(guiGraphics);
         }
 
         @Override
@@ -370,8 +370,11 @@ public class CraftingTerminalPanel extends ModulePanel {
         int clipY2 = clipY1 + contentHeight();
         g.enableScissor(clipX1, clipY1, clipX2, clipY2);
         try {
+            // 1.20.1 anchors the model at its feet; mirror vanilla's inventory placement in the box.
+            int centerX = (x1 + x2) / 2;
+            int feetY = y2 - 3;
             InventoryScreen.renderEntityInInventoryFollowsMouse(
-                    g, x1, y1, x2, y2, 30, 0.0625F, lookX, lookY, player);
+                    g, centerX, feetY, 30, centerX - (float) lookX, feetY - 50 - (float) lookY, player);
         } finally {
             g.disableScissor();
         }

@@ -15,10 +15,11 @@ import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.entity.player.PlayerContainerEvent;
-import net.neoforged.neoforge.event.entity.player.PlayerEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.network.NetworkHooks;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.event.entity.player.PlayerContainerEvent;
+import net.minecraftforge.event.entity.player.PlayerEvent;
 
 import com.lhy.mest.MESplicedterminal;
 import appeng.api.networking.IGrid;
@@ -47,10 +48,7 @@ public final class RemoteMenuAccess {
             return false;
         }
         var previousMenu = player.containerMenu;
-        var openedId = player.openMenu(provider, pos);
-        if (openedId.isEmpty() || player.containerMenu.containerId != openedId.getAsInt()) {
-            return false;
-        }
+        NetworkHooks.openScreen(player, provider, pos);
         return trackOpenedMenu(player, previousMenu, level, pos, originalGrid);
     }
 

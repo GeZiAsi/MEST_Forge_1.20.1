@@ -40,7 +40,7 @@ final class PatternSlotTransactions {
 
                 @Override
                 public boolean sameKind(ItemStack left, ItemStack right) {
-                    return ItemStack.isSameItemSameComponents(left, right);
+                    return ItemStack.isSameItemSameTags(left, right);
                 }
 
                 @Override

@@ -21,16 +21,15 @@ public class ToolkitHotbarGuiMixin {
     @Shadow
     private Minecraft minecraft;
 
+    /** The second widgets blit in {@code renderHotbar} is the vanilla selection frame. */
     @WrapWithCondition(
-            method = "renderItemHotbar",
+            method = "renderHotbar",
             at = @At(
                     value = "INVOKE",
-                    target = "Lnet/minecraft/client/gui/GuiGraphics;blitSprite(Lnet/minecraft/resources/ResourceLocation;IIII)V"))
+                    target = "Lnet/minecraft/client/gui/GuiGraphics;blit(Lnet/minecraft/resources/ResourceLocation;IIIIII)V",
+                    ordinal = 1))
     private boolean mest$skipVanillaHotbarSelection(
-            GuiGraphics graphics, ResourceLocation sprite, int x, int y, int width, int height) {
-        if (!ResourceLocation.withDefaultNamespace("hud/hotbar_selection").equals(sprite)) {
-            return true;
-        }
+            GuiGraphics graphics, ResourceLocation texture, int x, int y, int u, int v, int width, int height) {
         Player player = minecraft.player;
         return player == null || !ToolkitBarState.isToolkitSelected(player);
     }

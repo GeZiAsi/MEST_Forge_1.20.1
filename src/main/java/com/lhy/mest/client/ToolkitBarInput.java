@@ -4,13 +4,13 @@ import org.lwjgl.glfw.GLFW;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.bus.api.EventPriority;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.client.event.ClientTickEvent;
-import net.neoforged.neoforge.client.event.InputEvent;
-import net.neoforged.neoforge.network.PacketDistributor;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.eventbus.api.EventPriority;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.event.TickEvent;
+import net.minecraftforge.client.event.InputEvent;
+import com.lhy.mest.network.MestPackets;
 
 import com.lhy.mest.MESplicedterminal;
 import com.lhy.mest.network.ToolkitBarDropPacket;
@@ -33,7 +33,10 @@ public final class ToolkitBarInput {
     private ToolkitBarInput() {}
 
     @SubscribeEvent
-    public static void onClientTick(ClientTickEvent.Pre event) {
+    public static void onClientTick(TickEvent.ClientTickEvent event) {
+        if (event.phase != TickEvent.Phase.START) {
+            return;
+        }
         Minecraft minecraft = Minecraft.getInstance();
         LocalPlayer player = minecraft.player;
         if (!hudActive(minecraft, player)) {
@@ -51,7 +54,7 @@ public final class ToolkitBarInput {
         }
         if (ToolkitBarState.isToolkitSelected(player)) {
             while (minecraft.options.keyDrop.consumeClick()) {
-                PacketDistributor.sendToServer(
+                MestPackets.sendToServer(
                         new ToolkitBarDropPacket(net.minecraft.client.gui.screens.Screen.hasControlDown()));
             }
         }
@@ -67,8 +70,7 @@ public final class ToolkitBarInput {
                 || player.isSpectator()) {
             return;
         }
-        int delta = (int) Math.signum(event.getScrollDeltaY() != 0.0
-                ? event.getScrollDeltaY() : -event.getScrollDeltaX());
+        int delta = (int) Math.signum(event.getScrollDelta());
         if (delta == 0) {
             return;
         }
@@ -126,7 +128,7 @@ public final class ToolkitBarInput {
 
     public static void applySelection(LocalPlayer player, Bar bar, int slot) {
         ToolkitBarState.setSelection(player, bar, slot);
-        PacketDistributor.sendToServer(new ToolkitBarSelectPacket(ToolkitBarState.toIndex(bar, slot)));
+        MestPackets.sendToServer(new ToolkitBarSelectPacket(ToolkitBarState.toIndex(bar, slot)));
     }
 
     private static boolean hudActive(Minecraft minecraft, LocalPlayer player) {

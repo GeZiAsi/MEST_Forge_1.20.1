@@ -10,7 +10,6 @@
     "item": "ae2:crafting_unit"
   },
   "result": {
-    "count": 1,
-    "id": "mesplicedterminal:spliced_terminal"
+    "item": "mesplicedterminal:spliced_terminal"
   }
 }

@@ -1,5 +1,7 @@
 package com.lhy.mest.module;
 
+import com.lhy.mest.util.MestLists;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
@@ -18,7 +20,7 @@ class OrderedModuleRegistryTest {
         second.register("zeta:panel", "z");
 
         assertEquals(first.entries(), second.entries());
-        assertEquals("alpha:panel", first.entries().getFirst().getKey());
+        assertEquals("alpha:panel", MestLists.first(first.entries()).getKey());
     }
 
     @Test

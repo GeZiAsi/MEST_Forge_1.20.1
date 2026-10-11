@@ -11,8 +11,8 @@ import net.minecraft.client.renderer.Rect2i;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
-import net.neoforged.fml.ModList;
-import net.neoforged.neoforge.network.PacketDistributor;
+import net.minecraftforge.fml.ModList;
+import com.lhy.mest.network.MestPackets;
 
 import appeng.client.Point;
 import appeng.client.gui.Icon;
@@ -20,7 +20,6 @@ import appeng.client.gui.style.Blitter;
 import appeng.client.gui.widgets.ITooltip;
 import appeng.client.gui.widgets.Scrollbar;
 
-import com.glodblock.github.extendedae.client.button.EPPIcon;
 
 import com.lhy.mest.client.dock.ModulePanel;
 import com.lhy.mest.config.MestConfig;
@@ -259,7 +258,7 @@ public class ToolkitPanel extends ModulePanel {
         }
         boolean remember = button == 0;
         menu.setToolkitMemorySlot(toolkitSlot.toolkitIndex(), remember);
-        PacketDistributor.sendToServer(new ToolkitMemorySlotPacket(toolkitSlot.toolkitIndex(), remember));
+        MestPackets.sendToServer(new ToolkitMemorySlotPacket(toolkitSlot.toolkitIndex(), remember));
         return true;
     }
 
@@ -490,14 +489,10 @@ public class ToolkitPanel extends ModulePanel {
             int yOffset = isHovered() ? 1 : 0;
             int px = getX();
             int py = getY() + yOffset;
-            if (ModList.get().isLoaded("extendedae")) {
-                Blitter background = isHovered() ? EPPIcon.TERMINAL_BUTTON_HOVER : EPPIcon.TERMINAL_BUTTON;
-                background.dest(px, py, getWidth(), getHeight()).zOffset(2).blit(graphics);
-            } else {
-                graphics.fill(px, py, px + getWidth(), py + getHeight(), isHovered() ? 0xFF4A4A4A : 0xFF2E2E2E);
-            }
+            Blitter background = com.lhy.mest.client.MestButtonSprites.terminalButton(isHovered(), false);
+            background.dest(px, py, getWidth(), getHeight()).blit(graphics);
             Icon icon = memoryMode ? Icon.LOCKED : Icon.UNLOCKED;
-            icon.getBlitter().dest(px, py, getWidth(), getHeight()).zOffset(3).blit(graphics);
+            icon.getBlitter().dest(px, py, getWidth(), getHeight()).blit(graphics);
         }
 
         @Override

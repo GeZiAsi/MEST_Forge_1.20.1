@@ -1,11 +1,12 @@
 package com.lhy.mest.terminal;
 
+import com.lhy.mest.util.MestLists;
+
 import java.util.ArrayList;
 import java.util.List;
 
 import org.jetbrains.annotations.Nullable;
 
-import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
@@ -13,8 +14,6 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
-import net.neoforged.neoforge.attachment.IAttachmentHolder;
-import net.neoforged.neoforge.attachment.IAttachmentSerializer;
 
 import appeng.api.inventories.BaseInternalInventory;
 import appeng.api.inventories.InternalInventory;
@@ -25,27 +24,11 @@ import com.lhy.mest.network.ToolkitBarSyncPacket;
 /**
  * The player's toolkit: unstackable items, remembered slot types and extra-bar settings.
  *
- * <p>Attached to the player rather than the terminal, so losing a terminal loses nothing. HUD, the
+ * <p>Stored on the player (see {@link ToolkitDataHolder}) rather than the terminal, so losing a terminal loses nothing. HUD, the
  * extra-bar hand override and the terminal panel all read these same stack references, so in-place
  * tool changes (durability, charge) are visible everywhere and saved with the player.
  */
 public final class ToolkitInternalInventory extends BaseInternalInventory {
-    public static final IAttachmentSerializer<CompoundTag, ToolkitInternalInventory> SERIALIZER =
-            new IAttachmentSerializer<>() {
-                @Override
-                public ToolkitInternalInventory read(IAttachmentHolder holder, CompoundTag tag,
-                        HolderLookup.Provider provider) {
-                    ToolkitInternalInventory data = new ToolkitInternalInventory(holder);
-                    data.load(tag, provider);
-                    return data;
-                }
-
-                @Override
-                public CompoundTag write(ToolkitInternalInventory data, HolderLookup.Provider provider) {
-                    return data.save(provider);
-                }
-            };
-
     private final Player player;
     private final List<ItemStack> items = new ArrayList<>();
     private final List<ItemStack> memory = new ArrayList<>();
@@ -53,8 +36,6 @@ public final class ToolkitInternalInventory extends BaseInternalInventory {
     private boolean barEnabled;
     private ToolkitBarState.Bar page = ToolkitBarState.Bar.CENTER;
     private boolean quickMove = true;
-    /** Set once the first legacy terminal handed over its settings; later ones only add items. */
-    private boolean settingsMigrated;
     /** Bumped whenever something other than the visible cells changes and the client must hear it. */
     private int settingsRevision;
     /** Bumped only for server-side page changes; client-driven ones are already shown there. */
@@ -62,8 +43,8 @@ public final class ToolkitInternalInventory extends BaseInternalInventory {
     private long terminalCheckedAt = Long.MIN_VALUE;
     private boolean terminalCarried;
 
-    public ToolkitInternalInventory(IAttachmentHolder holder) {
-        this.player = (Player) holder;
+    public ToolkitInternalInventory(Player player) {
+        this.player = player;
     }
 
     // ---- terminal presence -------------------------------------------------------------------
@@ -76,7 +57,7 @@ public final class ToolkitInternalInventory extends BaseInternalInventory {
         long now = player.level().getGameTime();
         if (terminalCheckedAt != now) {
             terminalCheckedAt = now;
-            terminalCarried = ToolkitBarState.scanTerminals(player, false);
+            terminalCarried = ToolkitBarState.scanTerminals(player);
         }
         return terminalCarried;
     }
@@ -218,7 +199,7 @@ public final class ToolkitInternalInventory extends BaseInternalInventory {
 
     /**
      * Returns cells beyond a lowered {@code toolkitSlots} config to the player. Deferred until the
-     * player is in the world, since the attachment is read before the player can hold anything.
+     * player is in the world, since the save data is read before the player can hold anything.
      */
     void returnOverflow() {
         if (player.level().isClientSide() || items.size() <= size()) {
@@ -231,47 +212,8 @@ public final class ToolkitInternalInventory extends BaseInternalInventory {
             }
         }
         while (memory.size() > size()) {
-            memory.removeLast();
+            MestLists.removeLast(memory);
         }
-    }
-
-    /** Places a stack carried over from a legacy terminal, preferring its original cell. */
-    void mergeLegacy(int index, ItemStack stack, ItemStack remembered) {
-        if (!remembered.isEmpty() && index < size() && memoryAt(index).isEmpty()) {
-            ensureCapacity(memory, index + 1);
-            memory.set(index, remembered.copyWithCount(1));
-            settingsRevision++;
-        }
-        if (stack.isEmpty()) {
-            return;
-        }
-        int target = index < size() && liveStack(index).isEmpty() ? index : firstEmpty();
-        if (target >= 0 && ToolkitBarState.mayStore(stack)) {
-            ensureCapacity(items, target + 1);
-            items.set(target, stack.copy());
-        } else {
-            player.getInventory().placeItemBackInInventory(stack.copy());
-        }
-    }
-
-    void mergeLegacySettings(boolean legacyBar, boolean legacyQuickMove) {
-        if (!settingsMigrated) {
-            settingsMigrated = true;
-            barEnabled = legacyBar;
-            quickMove = legacyQuickMove;
-        } else {
-            barEnabled |= legacyBar;
-        }
-        settingsRevision++;
-    }
-
-    private int firstEmpty() {
-        for (int i = 0; i < size(); i++) {
-            if (liveStack(i).isEmpty()) {
-                return i;
-            }
-        }
-        return -1;
     }
 
     // ---- client sync -------------------------------------------------------------------------
@@ -319,37 +261,36 @@ public final class ToolkitInternalInventory extends BaseInternalInventory {
             return current;
         }
         current.setCount(incoming.getCount());
-        current.applyComponents(incoming.getComponentsPatch());
+        current.setTag(incoming.getTag() == null ? null : incoming.getTag().copy());
         return current;
     }
 
     // ---- persistence -------------------------------------------------------------------------
 
-    private CompoundTag save(HolderLookup.Provider provider) {
+    public CompoundTag save() {
         CompoundTag tag = new CompoundTag();
-        tag.put("Items", writeStacks(items, provider));
-        tag.put("Memory", writeStacks(memory, provider));
+        tag.put("Items", writeStacks(items));
+        tag.put("Memory", writeStacks(memory));
         tag.putBoolean("Bar", barEnabled);
         tag.putInt("Page", page.ordinal());
         tag.putBoolean("QuickMove", quickMove);
-        tag.putBoolean("SettingsMigrated", settingsMigrated);
         return tag;
     }
 
-    private void load(CompoundTag tag, HolderLookup.Provider provider) {
-        readStacks(tag.getList("Items", Tag.TAG_COMPOUND), items, provider);
-        readStacks(tag.getList("Memory", Tag.TAG_COMPOUND), memory, provider);
+    public void load(CompoundTag tag) {
+        readStacks(tag.getList("Items", Tag.TAG_COMPOUND), items);
+        readStacks(tag.getList("Memory", Tag.TAG_COMPOUND), memory);
         barEnabled = tag.getBoolean("Bar");
         int pageIndex = tag.getInt("Page");
         page = pageIndex >= 0 && pageIndex < ToolkitBarState.Bar.values().length
                 ? ToolkitBarState.Bar.values()[pageIndex]
                 : ToolkitBarState.Bar.CENTER;
         quickMove = !tag.contains("QuickMove") || tag.getBoolean("QuickMove");
-        settingsMigrated = tag.getBoolean("SettingsMigrated");
+        settingsRevision++;
     }
 
     // Slots are stored as ints: the toolkit can exceed the 256-slot limit of container codecs.
-    private static ListTag writeStacks(List<ItemStack> stacks, HolderLookup.Provider provider) {
+    private static ListTag writeStacks(List<ItemStack> stacks) {
         ListTag list = new ListTag();
         for (int i = 0; i < stacks.size(); i++) {
             ItemStack stack = stacks.get(i);
@@ -358,12 +299,12 @@ public final class ToolkitInternalInventory extends BaseInternalInventory {
             }
             CompoundTag entry = new CompoundTag();
             entry.putInt("Slot", i);
-            list.add(stack.save(provider, entry));
+            list.add(stack.save(entry));
         }
         return list;
     }
 
-    private static void readStacks(ListTag list, List<ItemStack> into, HolderLookup.Provider provider) {
+    private static void readStacks(ListTag list, List<ItemStack> into) {
         into.clear();
         for (int i = 0; i < list.size(); i++) {
             CompoundTag entry = list.getCompound(i);
@@ -371,7 +312,7 @@ public final class ToolkitInternalInventory extends BaseInternalInventory {
             if (slot < 0) {
                 continue;
             }
-            ItemStack stack = ItemStack.parseOptional(provider, entry);
+            ItemStack stack = ItemStack.of(entry);
             if (!stack.isEmpty()) {
                 ensureCapacity(into, slot + 1);
                 into.set(slot, stack);

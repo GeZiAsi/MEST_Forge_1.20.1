@@ -8,8 +8,8 @@ import org.jetbrains.annotations.Nullable;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.item.ItemStack;
-import net.neoforged.neoforge.network.PacketDistributor;
-import net.neoforged.neoforge.network.handling.IPayloadContext;
+import com.lhy.mest.network.MestPackets;
+import com.lhy.mest.network.PacketContext;
 
 import appeng.api.implementations.blockentities.PatternContainerGroup;
 import appeng.client.gui.AESubScreen;
@@ -28,7 +28,7 @@ public final class PatternProviderClientHandler {
     private PatternProviderClientHandler() {
     }
 
-    public static void handle(PatternProviderListPacket packet, IPayloadContext context) {
+    public static void handle(PatternProviderListPacket packet, PacketContext context) {
         if (!packet.isWellFormed()) {
             return;
         }
@@ -51,7 +51,7 @@ public final class PatternProviderClientHandler {
 
         ClientApplyResult result = STATE.apply(packet);
         if (result.requestResync()) {
-            PacketDistributor.sendToServer(new PatternProviderListPacket.Request(menu.containerId, true, (byte) 0));
+            MestPackets.sendToServer(new PatternProviderListPacket.Request(menu.containerId, true, (byte) 0));
         }
         if (result.entries() != null) {
             screen.updatePatternProviders(result.entries());

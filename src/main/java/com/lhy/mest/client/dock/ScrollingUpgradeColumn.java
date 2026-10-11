@@ -1,5 +1,7 @@
 package com.lhy.mest.client.dock;
 
+import com.lhy.mest.util.MestLists;
+
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -16,8 +18,7 @@ import appeng.client.gui.widgets.Scrollbar;
 import appeng.core.localization.GuiText;
 import appeng.menu.slot.AppEngSlot;
 
-import de.mari_023.ae2wtlib.api.AE2wtlibAPI;
-import de.mari_023.ae2wtlib.api.gui.UpgradeBackground;
+import de.mari_023.ae2wtlib.AE2wtlib;
 
 /**
  * AE2wtlib {@code ScrollingUpgradesPanel} hung off the anchored group: same {@link UpgradeBackground}
@@ -276,13 +277,14 @@ public class ScrollingUpgradeColumn implements ExtraChrome {
     }
 
     private boolean singularitySlotHidden(Slot slot) {
-        if (slots.isEmpty() || slot != slots.getFirst()) {
+        if (slots.isEmpty() || slot != MestLists.first(slots)) {
             return false;
         }
         if (!(slot instanceof AppEngSlot appEngSlot)) {
             return false;
         }
-        return appEngSlot.getItem().isEmpty() && !AE2wtlibAPI.hasQuantumBridgeCard(upgradeable::getUpgrades);
+        return appEngSlot.getItem().isEmpty()
+                && !upgradeable.getUpgrades().isInstalled(AE2wtlib.QUANTUM_BRIDGE_CARD);
     }
 
     private int upgradeSlotCount() {

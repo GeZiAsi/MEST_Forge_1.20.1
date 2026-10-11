@@ -7,16 +7,10 @@ import java.util.WeakHashMap;
 
 import org.jetbrains.annotations.Nullable;
 
-import net.minecraft.network.RegistryFriendlyByteBuf;
-import net.minecraft.network.codec.StreamCodec;
-import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.ItemStack;
-import net.neoforged.neoforge.network.PacketDistributor;
-import net.neoforged.neoforge.network.handling.IPayloadContext;
 
-import com.lhy.mest.MESplicedterminal;
 import com.lhy.mest.config.MestConfig;
 import com.lhy.mest.terminal.ToolkitBarState;
 import com.lhy.mest.terminal.ToolkitInternalInventory;
@@ -26,12 +20,7 @@ import com.lhy.mest.terminal.ToolkitInternalInventory;
  * slots whenever those changed. The page is only sent when the server changed it, so it cannot
  * undo a selection the client is already showing.
  */
-public record ToolkitBarSyncPacket(List<ItemStack> stacks, @Nullable Settings settings)
-        implements CustomPacketPayload {
-    public static final Type<ToolkitBarSyncPacket> TYPE = new Type<>(
-            ResourceLocation.fromNamespaceAndPath(MESplicedterminal.MODID, "toolkit_bar_sync"));
-    public static final StreamCodec<RegistryFriendlyByteBuf, ToolkitBarSyncPacket> STREAM_CODEC =
-            StreamCodec.of(ToolkitBarSyncPacket::write, ToolkitBarSyncPacket::read);
+public record ToolkitBarSyncPacket(List<ItemStack> stacks, @Nullable Settings settings) {
 
     public record Settings(boolean barEnabled, boolean quickMove, @Nullable ToolkitBarState.Bar page,
             List<ItemStack> memory) {
@@ -49,10 +38,10 @@ public record ToolkitBarSyncPacket(List<ItemStack> stacks, @Nullable Settings se
         stacks = List.copyOf(stacks);
     }
 
-    private static void write(RegistryFriendlyByteBuf buf, ToolkitBarSyncPacket packet) {
+    public void write(FriendlyByteBuf buf) {
+        ToolkitBarSyncPacket packet = this;
         for (int i = 0; i < ToolkitBarState.VISIBLE_TOOLKIT_SLOTS; i++) {
-            ItemStack.OPTIONAL_STREAM_CODEC.encode(buf,
-                    i < packet.stacks.size() ? packet.stacks.get(i) : ItemStack.EMPTY);
+            buf.writeItem(i < packet.stacks.size() ? packet.stacks.get(i) : ItemStack.EMPTY);
         }
         Settings settings = packet.settings;
         buf.writeBoolean(settings != null);
@@ -64,14 +53,14 @@ public record ToolkitBarSyncPacket(List<ItemStack> stacks, @Nullable Settings se
         buf.writeByte(settings.page() == null ? -1 : settings.page().ordinal());
         buf.writeVarInt(settings.memory().size());
         for (ItemStack remembered : settings.memory()) {
-            ItemStack.OPTIONAL_STREAM_CODEC.encode(buf, remembered);
+            buf.writeItem(remembered);
         }
     }
 
-    private static ToolkitBarSyncPacket read(RegistryFriendlyByteBuf buf) {
+    public static ToolkitBarSyncPacket read(FriendlyByteBuf buf) {
         List<ItemStack> stacks = new ArrayList<>(ToolkitBarState.VISIBLE_TOOLKIT_SLOTS);
         for (int i = 0; i < ToolkitBarState.VISIBLE_TOOLKIT_SLOTS; i++) {
-            stacks.add(ItemStack.OPTIONAL_STREAM_CODEC.decode(buf));
+            stacks.add(buf.readItem());
         }
         if (!buf.readBoolean()) {
             return new ToolkitBarSyncPacket(stacks, null);
@@ -88,14 +77,9 @@ public record ToolkitBarSyncPacket(List<ItemStack> stacks, @Nullable Settings se
         }
         List<ItemStack> memory = new ArrayList<>(count);
         for (int i = 0; i < count; i++) {
-            memory.add(ItemStack.OPTIONAL_STREAM_CODEC.decode(buf));
+            memory.add(buf.readItem());
         }
         return new ToolkitBarSyncPacket(stacks, new Settings(barEnabled, quickMove, page, memory));
-    }
-
-    @Override
-    public Type<? extends CustomPacketPayload> type() {
-        return TYPE;
     }
 
     public static void send(ServerPlayer player) {
@@ -127,10 +111,10 @@ public record ToolkitBarSyncPacket(List<ItemStack> stacks, @Nullable Settings se
                         pageChanged ? toolkit.page() : null, toolkit.memorySnapshot())
                 : null;
         LAST_SENT.put(player, new Sent(stacks, toolkit.settingsRevision(), toolkit.pageRevision()));
-        PacketDistributor.sendToPlayer(player, new ToolkitBarSyncPacket(stacks, settings));
+        MestPackets.sendToPlayer(player, new ToolkitBarSyncPacket(stacks, settings));
     }
 
-    public static void handle(ToolkitBarSyncPacket packet, IPayloadContext context) {
+    public static void handle(ToolkitBarSyncPacket packet, PacketContext context) {
         context.enqueueWork(() -> {
             if (context.player() != null && context.player().level().isClientSide()) {
                 ToolkitBarState.applyClientSync(context.player(), packet.stacks(), packet.settings());

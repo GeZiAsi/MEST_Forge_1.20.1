@@ -10,7 +10,6 @@ import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Equipable;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.enchantment.EnchantmentEffectComponents;
 import net.minecraft.world.item.enchantment.EnchantmentHelper;
 
 import com.lhy.mest.network.ToolkitBarSyncPacket;
@@ -76,10 +75,7 @@ public final class ToolkitBarActions {
         if (hand.isEmpty() || !(hand.getItem() instanceof Equipable)) {
             return null;
         }
-        EquipmentSlot slot = player.getEquipmentSlotForItem(hand);
-        if (!player.canUseSlot(slot)) {
-            return InteractionResult.PASS;
-        }
+        EquipmentSlot slot = net.minecraft.world.entity.LivingEntity.getEquipmentSlotForItem(hand);
         ItemStack worn = player.getItemBySlot(slot);
         if (ItemStack.matches(hand, worn) || preventsArmorChange(player, worn)) {
             return InteractionResult.FAIL;
@@ -105,7 +101,7 @@ public final class ToolkitBarActions {
     private static boolean preventsArmorChange(Player player, ItemStack worn) {
         return !worn.isEmpty()
                 && !player.isCreative()
-                && EnchantmentHelper.has(worn, EnchantmentEffectComponents.PREVENT_ARMOR_CHANGE);
+                && EnchantmentHelper.hasBindingCurse(worn);
     }
 
     /** Vanilla {@code InteractionResultHolder.sidedSuccess}: swing on the client, consume on the server. */

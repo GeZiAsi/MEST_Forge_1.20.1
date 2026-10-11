@@ -2,8 +2,7 @@ package com.lhy.mest.network;
 
 import java.util.Objects;
 
-import net.neoforged.neoforge.network.handling.IPayloadContext;
-import net.neoforged.neoforge.network.handling.IPayloadHandler;
+import java.util.function.BiConsumer;
 
 /**
  * Common-side registration target for a clientbound payload.
@@ -12,19 +11,19 @@ import net.neoforged.neoforge.network.handling.IPayloadHandler;
  * client installs its UI handler during client initialization before any play payload can arrive.
  */
 public final class PatternProviderClientBridge {
-    private static volatile IPayloadHandler<PatternProviderListPacket> handler = (packet, context) -> {
+    private static volatile BiConsumer<PatternProviderListPacket, PacketContext> handler = (packet, context) -> {
     };
 
     private PatternProviderClientBridge() {
     }
 
-    public static void install(IPayloadHandler<PatternProviderListPacket> clientHandler) {
+    public static void install(BiConsumer<PatternProviderListPacket, PacketContext> clientHandler) {
         handler = Objects.requireNonNull(clientHandler, "clientHandler");
     }
 
-    public static void handle(PatternProviderListPacket packet, IPayloadContext context) {
+    public static void handle(PatternProviderListPacket packet, PacketContext context) {
         if (packet.isWellFormed()) {
-            handler.handle(packet, context);
+            handler.accept(packet, context);
         }
     }
 }

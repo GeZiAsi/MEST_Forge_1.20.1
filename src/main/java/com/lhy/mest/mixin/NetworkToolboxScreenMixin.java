@@ -34,7 +34,7 @@ import com.lhy.mest.terminal.MestNetworkToolkitAccess;
  */
 @Mixin(AEBaseScreen.class)
 public abstract class NetworkToolboxScreenMixin {
-    @Shadow
+    @Shadow(remap = false)
     @Final
     protected WidgetContainer widgets;
 
@@ -70,9 +70,10 @@ public abstract class NetworkToolboxScreenMixin {
 
     @Unique
     private void mest$refreshToolbox(AEBaseScreen<?> screen, boolean captureAnchor) {
-        if (screen instanceof MESTScreen || !(screen.getMenu() instanceof AEBaseMenu menu)) {
+        if (screen instanceof MESTScreen) {
             return;
         }
+        AEBaseMenu menu = screen.getMenu();
         List<Slot> slots = menu.getSlots(SlotSemantics.TOOLBOX);
         if (slots.isEmpty() || !MestNetworkToolkitAccess.isTerminalToolbox(slots.get(0))
                 || !ToolboxChrome.hasVisibleSlots(slots)) {

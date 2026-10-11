@@ -4,6 +4,8 @@ import net.minecraft.network.chat.Component;
 
 import appeng.client.gui.AESubScreen;
 import appeng.client.gui.Icon;
+
+import com.lhy.mest.client.Ae2Icons;
 import appeng.client.gui.widgets.AECheckbox;
 import appeng.client.gui.widgets.TabButton;
 import appeng.core.localization.GuiText;
@@ -89,7 +91,7 @@ public class MestTerminalSettingsScreen extends AESubScreen<MESTMenu, MESTScreen
 
     private void addBackButton() {
         var label = menu.getHost().getMainMenuIcon().getHoverName();
-        TabButton button = new TabButton(Icon.BACK, label, btn -> returnToParent());
+        TabButton button = new TabButton(Ae2Icons.BACK, label, btn -> returnToParent());
         widgets.add("back", button);
     }
 

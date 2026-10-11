@@ -8,7 +8,7 @@ import net.minecraft.world.inventory.Slot;
 import appeng.menu.AEBaseMenu;
 import appeng.menu.SlotSemantic;
 
-@Mixin(AEBaseMenu.class)
+@Mixin(value = AEBaseMenu.class, remap = false)
 public interface AEBaseMenuAccessor {
     @Invoker("addSlot")
     Slot mest$addSlot(Slot slot, SlotSemantic semantic);

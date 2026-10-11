@@ -2,26 +2,20 @@ package com.lhy.mest.network;
 
 import org.jetbrains.annotations.Nullable;
 
-import io.netty.buffer.ByteBuf;
 import it.unimi.dsi.fastutil.ints.Int2ObjectArrayMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.registries.Registries;
-import net.minecraft.network.RegistryFriendlyByteBuf;
-import net.minecraft.network.codec.ByteBufCodecs;
-import net.minecraft.network.codec.StreamCodec;
-import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.ItemStack;
-import net.neoforged.neoforge.network.handling.IPayloadContext;
 
 import appeng.api.implementations.blockentities.PatternContainerGroup;
 
-import com.lhy.mest.MESplicedterminal;
 import com.lhy.mest.terminal.MESTMenu;
 
 /**
@@ -39,26 +33,16 @@ public record PatternProviderListPacket(
         long sortOrder,
         @Nullable PatternContainerGroup group,
         Int2ObjectMap<ItemStack> slots,
-        @Nullable PatternProviderLoc loc) implements CustomPacketPayload {
-    public static final Type<PatternProviderListPacket> TYPE =
-            new Type<>(ResourceLocation.fromNamespaceAndPath(MESplicedterminal.MODID, "pattern_provider_list"));
+        @Nullable PatternProviderLoc loc) {
 
     /** Keeps every payload well below Minecraft's clientbound custom-payload limit. */
     static final int MAX_SLOTS_PER_PACKET = PatternProviderClientState.MAX_SLOTS_PER_CHUNK;
-
-    public static final StreamCodec<RegistryFriendlyByteBuf, PatternProviderListPacket> STREAM_CODEC =
-            StreamCodec.ofMember(PatternProviderListPacket::write, PatternProviderListPacket::read);
 
     public enum Operation {
         RESET,
         FULL,
         DELTA,
         REMOVE
-    }
-
-    @Override
-    public Type<? extends CustomPacketPayload> type() {
-        return TYPE;
     }
 
     public static PatternProviderListPacket reset(int containerId, long epoch) {
@@ -85,7 +69,7 @@ public record PatternProviderListPacket(
                 providerId, 0, 0, 1, 0, 0, null, new Int2ObjectArrayMap<>(), null);
     }
 
-    private static PatternProviderListPacket read(RegistryFriendlyByteBuf buf) {
+    public static PatternProviderListPacket read(FriendlyByteBuf buf) {
         int containerId = -1;
         try {
             containerId = buf.readVarInt();
@@ -112,7 +96,7 @@ public record PatternProviderListPacket(
                         group = PatternContainerGroup.readFromPacket(buf);
                         loc = readLoc(buf);
                     }
-                    var slots = SlotsCodecHolder.CODEC.decode(buf);
+                    var slots = readSlots(buf);
                     packet = new PatternProviderListPacket(containerId, epoch, operation, providerId, revision,
                             chunkIndex, chunkCount, inventorySize, sortOrder, group, slots, loc);
                 }
@@ -127,7 +111,7 @@ public record PatternProviderListPacket(
         }
     }
 
-    private void write(RegistryFriendlyByteBuf buf) {
+    public void write(FriendlyByteBuf buf) {
         if (!isWellFormed()) {
             throw new IllegalStateException("Cannot encode a malformed pattern provider list update");
         }
@@ -155,10 +139,10 @@ public record PatternProviderListPacket(
             group.writeToPacket(buf);
             writeLoc(buf, loc);
         }
-        SlotsCodecHolder.CODEC.encode(buf, slots);
+        writeSlots(buf, slots);
     }
 
-    private static void writeLoc(RegistryFriendlyByteBuf buf, @Nullable PatternProviderLoc loc) {
+    private static void writeLoc(FriendlyByteBuf buf, @Nullable PatternProviderLoc loc) {
         if (loc == null) {
             buf.writeBoolean(false);
             return;
@@ -170,7 +154,7 @@ public record PatternProviderListPacket(
     }
 
     @Nullable
-    private static PatternProviderLoc readLoc(RegistryFriendlyByteBuf buf) {
+    private static PatternProviderLoc readLoc(FriendlyByteBuf buf) {
         if (!buf.readBoolean()) {
             return null;
         }
@@ -231,7 +215,7 @@ public record PatternProviderListPacket(
                 0, 0, 0, 1, 0, 0, null, new Int2ObjectArrayMap<>(), null);
     }
 
-    private static void discardRemaining(ByteBuf buf) {
+    private static void discardRemaining(FriendlyByteBuf buf) {
         try {
             buf.skipBytes(buf.readableBytes());
         } catch (RuntimeException ignored) {
@@ -239,22 +223,11 @@ public record PatternProviderListPacket(
         }
     }
 
-    public record Request(int containerId, boolean subscribe, byte showMode) implements CustomPacketPayload {
-        public static final Type<Request> TYPE =
-                new Type<>(ResourceLocation.fromNamespaceAndPath(MESplicedterminal.MODID,
-                        "pattern_provider_list_request"));
-        public static final StreamCodec<ByteBuf, Request> STREAM_CODEC =
-                StreamCodec.ofMember(Request::write, Request::read);
-
-        @Override
-        public Type<? extends CustomPacketPayload> type() {
-            return TYPE;
-        }
-
-        private static Request read(ByteBuf buf) {
+    public record Request(int containerId, boolean subscribe, byte showMode) {
+        public static Request read(FriendlyByteBuf buf) {
             try {
-                int containerId = ByteBufCodecs.VAR_INT.decode(buf);
-                boolean subscribe = ByteBufCodecs.BOOL.decode(buf);
+                int containerId = buf.readVarInt();
+                boolean subscribe = buf.readBoolean();
                 byte showMode = buf.readByte();
                 if (buf.isReadable()) {
                     throw new IllegalArgumentException("Trailing pattern provider request data");
@@ -266,12 +239,12 @@ public record PatternProviderListPacket(
             }
         }
 
-        private void write(ByteBuf buf) {
+        public void write(FriendlyByteBuf buf) {
             if (!isWellFormed()) {
                 throw new IllegalStateException("Cannot encode a malformed pattern provider request");
             }
-            ByteBufCodecs.VAR_INT.encode(buf, containerId);
-            ByteBufCodecs.BOOL.encode(buf, subscribe);
+            buf.writeVarInt(containerId);
+            buf.writeBoolean(subscribe);
             buf.writeByte(showMode);
         }
 
@@ -279,7 +252,7 @@ public record PatternProviderListPacket(
             return containerId >= 0 && showMode >= 0 && showMode <= 2;
         }
 
-        public static void handle(Request packet, IPayloadContext context) {
+        public static void handle(Request packet, PacketContext context) {
             if (!packet.isWellFormed()) {
                 return;
             }
@@ -294,15 +267,27 @@ public record PatternProviderListPacket(
         }
     }
 
-    /**
-     * ItemStack's stream codec touches bootstrapped registries during initialization. Keep it out of
-     * RESET and rejected-packet decode paths, which do not contain slot data.
-     */
-    private static final class SlotsCodecHolder {
-        private static final StreamCodec<RegistryFriendlyByteBuf, Int2ObjectMap<ItemStack>> CODEC =
-                ByteBufCodecs.map(Int2ObjectArrayMap::new,
-                        ByteBufCodecs.SHORT.map(Short::intValue, Integer::shortValue),
-                        ItemStack.OPTIONAL_STREAM_CODEC,
-                        MAX_SLOTS_PER_PACKET);
+    private static void writeSlots(FriendlyByteBuf buf, Int2ObjectMap<ItemStack> slots) {
+        if (slots.size() > MAX_SLOTS_PER_PACKET) {
+            throw new IllegalStateException("Too many pattern provider slots in one packet");
+        }
+        buf.writeVarInt(slots.size());
+        for (var entry : slots.int2ObjectEntrySet()) {
+            buf.writeShort(entry.getIntKey());
+            buf.writeItem(entry.getValue());
+        }
+    }
+
+    private static Int2ObjectMap<ItemStack> readSlots(FriendlyByteBuf buf) {
+        int size = buf.readVarInt();
+        if (size < 0 || size > MAX_SLOTS_PER_PACKET) {
+            throw new IllegalArgumentException("Pattern provider slot count out of range: " + size);
+        }
+        Int2ObjectMap<ItemStack> slots = new Int2ObjectArrayMap<>(size);
+        for (int i = 0; i < size; i++) {
+            int slot = buf.readShort();
+            slots.put(slot, buf.readItem());
+        }
+        return slots;
     }
 }

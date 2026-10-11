@@ -15,14 +15,16 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.crafting.RecipeHolder;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.item.crafting.RecipeType;
-import net.minecraft.world.item.crafting.SmithingRecipeInput;
+import net.minecraft.world.SimpleContainer;
 import net.minecraft.world.item.crafting.StonecutterRecipe;
 import net.minecraft.world.inventory.Slot;
 
 import appeng.api.config.ActionItems;
 import appeng.client.gui.Icon;
+
+import com.lhy.mest.client.Ae2Icons;
 import appeng.client.gui.style.Blitter;
 import appeng.client.gui.widgets.ActionButton;
 import appeng.client.gui.widgets.ITooltip;
@@ -59,8 +61,6 @@ public class PatternEncodingPanel extends ModulePanel {
     private static final int RAIL_SPRITE_WIDTH = 21;
     private static final int RAIL_OVERLAP = 2;
     private static final int RAIL_SHIFT_X = 2;
-    private static final ResourceLocation RAIL_SPRITE = ResourceLocation.fromNamespaceAndPath(
-            MESplicedterminal.MODID, "vertical_buttons_bg");
     /** Vanilla gap between the encoded-pattern slot (ends at 165) and the tab column (173). */
     private static final int TAB_GAP = 8;
     private static final int PATTERN_SLOT_X = 139;
@@ -89,7 +89,7 @@ public class PatternEncodingPanel extends ModulePanel {
     private int processingScroll;
     private int stonecuttingScroll;
     private final Scrollbar scrollbar = new Scrollbar();
-    private RecipeHolder<StonecutterRecipe> hoveredStonecuttingRecipe;
+    private StonecutterRecipe hoveredStonecuttingRecipe;
 
     public PatternEncodingPanel(MESTMenu menu) {
         this.menu = menu;
@@ -128,10 +128,10 @@ public class PatternEncodingPanel extends ModulePanel {
             widgets.addAll(plusChrome.widgets());
         }
 
-        craftingClearBtn = halfAction(ActionItems.S_CLOSE, menu::clearPatternEncoding);
-        processingClearBtn = halfAction(ActionItems.S_CLOSE, menu::clearPatternEncoding);
-        processingCycleBtn = halfAction(ActionItems.S_CYCLE_PROCESSING_OUTPUT, menu::cycleProcessingOutput);
-        smithingClearBtn = halfAction(ActionItems.S_CLOSE, menu::clearPatternEncoding);
+        craftingClearBtn = halfAction(ActionItems.CLOSE, menu::clearPatternEncoding);
+        processingClearBtn = halfAction(ActionItems.CLOSE, menu::clearPatternEncoding);
+        processingCycleBtn = halfAction(ActionItems.CYCLE_PROCESSING_OUTPUT, menu::cycleProcessingOutput);
+        smithingClearBtn = halfAction(ActionItems.CLOSE, menu::clearPatternEncoding);
 
         craftingSubstitutions = substitutionToggle(menu::setPatternSubstitute);
         craftingFluidSubstitutions = fluidSubstitutionToggle();
@@ -148,8 +148,8 @@ public class PatternEncodingPanel extends ModulePanel {
 
     private ToggleButton substitutionToggle(ToggleButton.Listener listener) {
         var button = new ToggleButton(
-                Icon.S_SUBSTITUTION_ENABLED,
-                Icon.S_SUBSTITUTION_DISABLED,
+                Ae2Icons.S_SUBSTITUTION_ENABLED,
+                Ae2Icons.S_SUBSTITUTION_DISABLED,
                 listener);
         button.setHalfSize(true);
         button.setDisableBackground(true);
@@ -165,8 +165,8 @@ public class PatternEncodingPanel extends ModulePanel {
 
     private ToggleButton fluidSubstitutionToggle() {
         var button = new ToggleButton(
-                Icon.S_FLUID_SUBSTITUTION_ENABLED,
-                Icon.S_FLUID_SUBSTITUTION_DISABLED,
+                Ae2Icons.S_FLUID_SUBSTITUTION_ENABLED,
+                Ae2Icons.S_FLUID_SUBSTITUTION_DISABLED,
                 menu::setPatternFluidSubstitute);
         button.setHalfSize(true);
         button.setDisableBackground(true);
@@ -390,8 +390,8 @@ public class PatternEncodingPanel extends ModulePanel {
     @Override
     public void renderForegroundContent(GuiGraphics g, Font font, int mouseX, int mouseY, float partialTicks) {
         if (hoveredStonecuttingRecipe != null) {
-            g.renderComponentTooltip(font, List.of(hoveredStonecuttingRecipe.value()
-                    .getResultItem(menu.getPlayer().registryAccess())
+            g.renderComponentTooltip(font, List.of(hoveredStonecuttingRecipe
+                    .getResultItem(menu.getPlayer().level().registryAccess())
                     .getHoverName()), mouseX, mouseY);
         }
     }
@@ -435,12 +435,12 @@ public class PatternEncodingPanel extends ModulePanel {
             int visibleIndex = i - start;
             int slotX = bgX + 26 + (visibleIndex % STONECUTTING_COLS) * 20;
             int slotY = bgY + 12 + (visibleIndex / STONECUTTING_COLS) * 22;
-            boolean isSelected = selected != null && selected.equals(recipe.id());
+            boolean isSelected = selected != null && selected.equals(recipe.getId());
             boolean hover = contains(mouseX, mouseY, slotX, slotY, 20, 22);
             Blitter slotBg = isSelected ? STONE_SLOT_SELECTED : hover ? STONE_SLOT_HOVER : STONE_SLOT;
             slotBg.dest(slotX, slotY).blit(g);
             int itemY = (isSelected || hover) ? slotY + 3 : slotY + 2;
-            ItemStack result = recipe.value().getResultItem(menu.getPlayer().registryAccess());
+            ItemStack result = recipe.getResultItem(menu.getPlayer().level().registryAccess());
             g.renderItem(result, slotX + 2, itemY);
             g.renderItemDecorations(font, result, slotX + 2, itemY);
             if (hover) {
@@ -499,7 +499,7 @@ public class PatternEncodingPanel extends ModulePanel {
         if (button == 0 && menu.getPatternEncodingMode() == EncodingMode.STONECUTTING) {
             var recipe = stonecuttingRecipeAt(mx, my);
             if (recipe != null) {
-                menu.setStonecuttingRecipeId(recipe.id());
+                menu.setStonecuttingRecipeId(recipe.getId());
                 Minecraft.getInstance().getSoundManager()
                         .play(SimpleSoundInstance.forUI(SoundEvents.UI_STONECUTTER_SELECT_RECIPE, 1.0F));
                 return true;
@@ -593,7 +593,7 @@ public class PatternEncodingPanel extends ModulePanel {
         return scrollbar.isDragging();
     }
 
-    private RecipeHolder<StonecutterRecipe> stonecuttingRecipeAt(double mx, double my) {
+    private StonecutterRecipe stonecuttingRecipeAt(double mx, double my) {
         int bgX = contentLeft();
         int bgY = contentTop();
         var recipes = menu.getStonecuttingRecipes();
@@ -620,7 +620,7 @@ public class PatternEncodingPanel extends ModulePanel {
     }
 
     private ItemStack getSmithingResult() {
-        var input = new SmithingRecipeInput(
+        var input = new SimpleContainer(
                 menu.getSmithingTableTemplateSlot().getItem(),
                 menu.getSmithingTableBaseSlot().getItem(),
                 menu.getSmithingTableAdditionSlot().getItem());
@@ -631,23 +631,21 @@ public class PatternEncodingPanel extends ModulePanel {
         if (recipe == null) {
             return ItemStack.EMPTY;
         }
-        return recipe.value().assemble(input, level.registryAccess());
+        return recipe.assemble(input, level.registryAccess());
     }
 
-    private static Icon iconForMode(EncodingMode mode) {
-        if (mode == EncodingMode.CRAFTING) {
-            return Icon.TAB_CRAFTING;
-        }
+    /** AE2 15's encoding terminal tabs show the workstation item instead of AE2 19's tab icons. */
+    private static ItemStack iconForMode(EncodingMode mode) {
         if (mode == EncodingMode.PROCESSING) {
-            return Icon.TAB_PROCESSING;
+            return new ItemStack(Items.FURNACE);
         }
         if (mode == EncodingMode.SMITHING_TABLE) {
-            return Icon.TAB_SMITHING;
+            return new ItemStack(Items.SMITHING_TABLE);
         }
         if (mode == EncodingMode.STONECUTTING) {
-            return Icon.TAB_STONECUTTING;
+            return new ItemStack(Items.STONECUTTER);
         }
-        return Icon.COG;
+        return new ItemStack(Items.CRAFTING_TABLE);
     }
 
     private static Component tooltipForMode(EncodingMode mode) {
@@ -680,7 +678,7 @@ public class PatternEncodingPanel extends ModulePanel {
             return;
         }
         int railLeft = x + width - RAIL_OVERLAP + RAIL_SHIFT_X;
-        g.blitSprite(RAIL_SPRITE, railLeft - 2, joinedRailY, RAIL_SPRITE_WIDTH, joinedRailH);
+        com.lhy.mest.client.GuiSprites.verticalButtonsBackground(g, railLeft - 2, joinedRailY, RAIL_SPRITE_WIDTH, joinedRailH);
         g.flush();
     }
 

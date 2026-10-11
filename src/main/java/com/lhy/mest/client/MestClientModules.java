@@ -4,8 +4,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-import net.neoforged.fml.ModList;
-import net.neoforged.fml.ModLoader;
+import net.minecraftforge.fml.ModList;
+import net.minecraftforge.fml.ModLoader;
 
 import com.lhy.mest.api.client.MestModuleFactory;
 import com.lhy.mest.api.client.RegisterMestModulesEvent;
@@ -46,7 +46,7 @@ public final class MestClientModules {
             new Registration("toolkit", context -> new ToolkitPanel(context.menu())),
             new Registration("network_toolkit", context -> new NetworkToolkitPanel(context.menu())),
             new Registration(HotkeysPanel.ID, context -> new HotkeysPanel(context.style(), context.dock())),
-            new Registration("provider_select", context -> ModList.get().isLoaded("extendedae_plus")
+            new Registration("provider_select", context -> com.lhy.mest.compat.plus.PlusScreenSupport.loaded()
                     ? new ProviderSelectPanel(context.style())
                     : null));
 
@@ -62,7 +62,7 @@ public final class MestClientModules {
         if (ADDONS.isFrozen()) {
             return;
         }
-        ModLoader.postEvent(new RegisterMestModulesEvent(ADDONS));
+        ModLoader.get().postEvent(new RegisterMestModulesEvent(ADDONS));
         ADDONS.freeze();
         var list = new ArrayList<>(BUILTINS);
         for (Map.Entry<String, MestModuleFactory> entry : ADDONS.entries()) {

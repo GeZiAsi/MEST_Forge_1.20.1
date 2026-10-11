@@ -32,10 +32,9 @@ public final class MestSlotSemantics {
     public static final SlotSemantic TOOLKIT =
             SlotSemantics.register("MEST_TOOLKIT", false);
     /**
-     * The terminal's network-tool upgrade slots. Registered with AE2's own {@code TOOLBOX} flags —
-     * player side and the highest quick-move priority — so shift-clicking an upgrade card out of
-     * the ME list fills the network tool first, exactly like a vanilla network tool.
+     * The terminal's network-tool upgrade slots. Registered with AE2's own {@code TOOLBOX} flag
+     * (player side), so they behave like a vanilla network tool's toolbox.
      */
     public static final SlotSemantic NETWORK_TOOLKIT =
-            SlotSemantics.register("MEST_NETWORK_TOOLKIT", true, 3000);
+            SlotSemantics.register("MEST_NETWORK_TOOLKIT", true);
 }
