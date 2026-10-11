@@ -5,7 +5,7 @@
 > 本分支是 **ME 拼接终端（MEST）** 的 **Forge 1.20.1** 移植版，面向 **GTL（GregTech Leisure）** 整合包。
 >
 > - 原作者：**lhy512103** — 原版仓库（NeoForge 1.21.1）：<https://github.com/lhy512103/MEST>
-> - 移植作者：**GeZiAsi**（格兹亚西）（移植版源码仓库尚未发布）
+> - 移植作者：**GeZiAsi**（格兹亚西） — 移植版仓库：<https://github.com/GeZiAsi/MEST_Forge_1.20.1>
 > - 许可证：MIT（保留原作者版权声明，见 [LICENSE](LICENSE)）
 
 ## Forge 1.20.1 移植版说明
@@ -47,7 +47,7 @@
 This branch ports **ME Spliced Terminal (MEST)** to **Forge 1.20.1** for the **GTL (GregTech Leisure)** modpack.
 
 - Original author: **lhy512103** — original NeoForge 1.21.1 repository: <https://github.com/lhy512103/MEST>
-- Port: **GeZiAsi**（格兹亚西） (the port's own repository is not published yet)
+- Port: **GeZiAsi** (格兹亚西) — port repository: <https://github.com/GeZiAsi/MEST_Forge_1.20.1>
 - License: MIT, original copyright kept (see [LICENSE](LICENSE)).
 
 Requires Forge 47.1+, AE2 15.x and AE2WTLib 15.x; JEI 15.19–15.49, ExtendedAE and gtlcore are optional.
