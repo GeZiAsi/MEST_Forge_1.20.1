@@ -83,12 +83,21 @@ public class MestDevTest {
         }
     }
 
-    /** Panel toggles are saved, so start every run from the bundled default layout. */
+    /**
+     * Panel toggles are saved, so start every run from the bundled default layout, or from a copy
+     * of the layout files in {@code mest.devtest.layout} when that is set.
+     */
     private static void resetLayout() {
         var dir = net.minecraftforge.fml.loading.FMLPaths.CONFIGDIR.get().resolve("mesplicedterminal");
-        for (String file : new String[] { "layout.json", "presets.json" }) {
+        String seed = System.getProperty("mest.devtest.layout");
+        for (String file : new String[] { "layout.json", "presets.json", "preferences.json" }) {
             try {
                 java.nio.file.Files.deleteIfExists(dir.resolve(file));
+                if (seed != null && java.nio.file.Files.exists(java.nio.file.Path.of(seed, file))) {
+                    java.nio.file.Files.createDirectories(dir);
+                    java.nio.file.Files.copy(java.nio.file.Path.of(seed, file), dir.resolve(file));
+                    log("seeded {} from {}", file, seed);
+                }
             } catch (java.io.IOException e) {
                 log("could not reset {}: {}", file, e);
             }

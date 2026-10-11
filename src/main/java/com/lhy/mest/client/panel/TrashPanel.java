@@ -88,9 +88,13 @@ public class TrashPanel extends ModulePanel {
         return false;
     }
 
+    /**
+     * Still opens as a pinned popup by default, but may be dragged into a free spot of a spliced
+     * window; hiding it there just collapses that section until the trash is opened again.
+     */
     @Override
     public boolean canSplice() {
-        return false;
+        return true;
     }
 
     @Override

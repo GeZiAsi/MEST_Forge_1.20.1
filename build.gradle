@@ -97,7 +97,15 @@ legacyForge {
             gameDirectory = project.file('run/devtest')
             systemProperty 'mest.devtest', 'true'
             systemProperty 'mest.devtest.quit', project.findProperty('mestDevtestQuit') ?: 'true'
-            programArguments.addAll '--width', '1600', '--height', '900'
+            programArguments.addAll '--width', (project.findProperty('mestDevtestWidth') ?: '1600').toString(),
+                    '--height', (project.findProperty('mestDevtestHeight') ?: '900').toString()
+            // A folder with someone's layout.json/presets.json/preferences.json to start from (read only).
+            if (project.findProperty('mestDevtestLayout')) {
+                systemProperty 'mest.devtest.layout', project.findProperty('mestDevtestLayout').toString()
+            }
+            if (project.findProperty('mestDevtestGuiScale')) {
+                systemProperty 'mest.devtest.guiScale', project.findProperty('mestDevtestGuiScale').toString()
+            }
         }
         server {
             server()
