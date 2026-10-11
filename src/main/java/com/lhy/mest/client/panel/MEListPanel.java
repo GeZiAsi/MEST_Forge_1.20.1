@@ -272,6 +272,8 @@ public class MEListPanel extends ModulePanel implements ISortSource {
     }
 
     public void tick(boolean paused) {
+        // AE2 15: RepoSlot only exposes entries while the repo is marked powered.
+        repo.setPower(menu.isLinked());
         repo.setPaused(paused);
         layoutChrome();
         updateExternalSearch();

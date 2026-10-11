@@ -15,6 +15,15 @@ base {
     archivesName = mod_id
 }
 
+// Development-only automation (src/devtest): drives a test world and screenshots the terminal.
+// It is never part of the published jar; only the runClientDevtest run enables it.
+sourceSets {
+    devtest {
+        compileClasspath += sourceSets.main.output + sourceSets.main.compileClasspath
+        runtimeClasspath += sourceSets.main.output + sourceSets.main.runtimeClasspath
+    }
+}
+
 // Minecraft 1.20.1 ships Java 17 to end users.
 java.toolchain.languageVersion = JavaLanguageVersion.of(17)
 
@@ -82,6 +91,14 @@ legacyForge {
             client()
             gameDirectory = project.file('run/client')
         }
+        clientDevtest {
+            client()
+            sourceSet = sourceSets.devtest
+            gameDirectory = project.file('run/devtest')
+            systemProperty 'mest.devtest', 'true'
+            systemProperty 'mest.devtest.quit', project.findProperty('mestDevtestQuit') ?: 'true'
+            programArguments.addAll '--width', '1600', '--height', '900'
+        }
         server {
             server()
             programArgument '--nogui'
@@ -97,6 +114,9 @@ legacyForge {
     mods {
         "${mod_id}" {
             sourceSet(sourceSets.main)
+        }
+        mestdevtest {
+            sourceSet(sourceSets.devtest)
         }
     }
 }
@@ -126,6 +146,7 @@ dependencies {
 
     // Development runtime: the AE2 part of the GTL stack.
     modRuntimeOnly "appeng:appliedenergistics2-forge:${ae2_version}"
+    modRuntimeOnly "maven.modrinth:guideme:${guideme_version}"
     modRuntimeOnly "maven.modrinth:applied-energistics-2-wireless-terminals:${ae2wtlib_version}"
     modRuntimeOnly "maven.modrinth:extended-ae:${extendedae_version}"
     modRuntimeOnly "maven.modrinth:glodium:${glodium_version}"
@@ -136,6 +157,8 @@ dependencies {
 
     testImplementation 'org.junit.jupiter:junit-jupiter:5.11.4'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher:1.11.4'
+    // Minecraft classes touched by tests (e.g. Mth) log through the SLF4J 2 API.
+    testRuntimeOnly 'org.slf4j:slf4j-api:2.0.7'
 }
 
 // Unit tests are isolated from mod dependencies by default. Packet codec tests need the same
@@ -175,6 +198,13 @@ tasks.withType(JavaCompile).configureEach {
     options.compilerArgs += ['-Xmaxerrs', '10000']
     options.fork = true
     options.forkOptions.jvmArgs += ['-Duser.language=en', '-Duser.country=US']
+}
+
+// Forge 1.20.1 discovers mixin configs through this manifest attribute only.
+tasks.named('jar', Jar).configure {
+    manifest.attributes([
+            'MixinConfigs': 'mest.mixins.json',
+    ])
 }
 
 tasks.withType(AbstractArchiveTask).configureEach {

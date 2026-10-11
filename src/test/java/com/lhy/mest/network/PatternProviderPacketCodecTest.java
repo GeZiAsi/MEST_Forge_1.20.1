@@ -4,20 +4,14 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.lang.reflect.Proxy;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.junit.jupiter.api.Test;
 
-import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import it.unimi.dsi.fastutil.ints.Int2ObjectArrayMap;
 
-import net.minecraft.core.RegistryAccess;
-import net.minecraft.network.RegistryFriendlyByteBuf;
-import net.minecraft.network.codec.ByteBufCodecs;
-import net.neoforged.neoforge.network.connection.ConnectionType;
-import net.neoforged.neoforge.network.handling.IPayloadContext;
+import net.minecraft.network.FriendlyByteBuf;
 
 class PatternProviderPacketCodecTest {
     @Test
@@ -25,11 +19,11 @@ class PatternProviderPacketCodecTest {
         var expected = new PatternProviderActionPacket(
                 7, 11, 13, 17, 19,
                 PatternProviderActionPacket.Action.QUICK_MOVE_TO_PLAYER);
-        ByteBuf buf = Unpooled.buffer();
+        FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
         try {
-            PatternProviderActionPacket.STREAM_CODEC.encode(buf, expected);
+            expected.write(buf);
 
-            assertEquals(expected, PatternProviderActionPacket.STREAM_CODEC.decode(buf));
+            assertEquals(expected, PatternProviderActionPacket.read(buf));
             assertEquals(0, buf.readableBytes());
         } finally {
             buf.release();
@@ -38,12 +32,12 @@ class PatternProviderPacketCodecTest {
 
     @Test
     void actionCodecRejectsInvalidOrdinalWithoutThrowing() {
-        ByteBuf buf = Unpooled.buffer();
+        FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
         try {
             writeActionEnvelope(buf);
             buf.writeByte(255);
 
-            var decoded = PatternProviderActionPacket.STREAM_CODEC.decode(buf);
+            var decoded = PatternProviderActionPacket.read(buf);
 
             assertFalse(decoded.isWellFormed());
             assertEquals(0, buf.readableBytes());
@@ -54,11 +48,11 @@ class PatternProviderPacketCodecTest {
 
     @Test
     void actionCodecRejectsTruncatedPacketWithoutThrowing() {
-        ByteBuf buf = Unpooled.buffer();
+        FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
         try {
-            ByteBufCodecs.VAR_INT.encode(buf, 7);
+            buf.writeVarInt(7);
 
-            var decoded = PatternProviderActionPacket.STREAM_CODEC.decode(buf);
+            var decoded = PatternProviderActionPacket.read(buf);
 
             assertFalse(decoded.isWellFormed());
             assertEquals(7, decoded.containerId());
@@ -73,9 +67,9 @@ class PatternProviderPacketCodecTest {
         var expected = PatternProviderListPacket.reset(23, 29);
         var buf = registryBuffer();
         try {
-            PatternProviderListPacket.STREAM_CODEC.encode(buf, expected);
+            expected.write(buf);
 
-            var decoded = PatternProviderListPacket.STREAM_CODEC.decode(buf);
+            var decoded = PatternProviderListPacket.read(buf);
 
             assertTrue(decoded.isWellFormed());
             assertEquals(expected.containerId(), decoded.containerId());
@@ -95,7 +89,7 @@ class PatternProviderPacketCodecTest {
             buf.writeVarLong(29);
             buf.writeVarInt(99);
 
-            var decoded = PatternProviderListPacket.STREAM_CODEC.decode(buf);
+            var decoded = PatternProviderListPacket.read(buf);
 
             assertFalse(decoded.isWellFormed());
             assertEquals(23, decoded.containerId());
@@ -111,7 +105,7 @@ class PatternProviderPacketCodecTest {
         try {
             buf.writeVarInt(23);
 
-            var decoded = PatternProviderListPacket.STREAM_CODEC.decode(buf);
+            var decoded = PatternProviderListPacket.read(buf);
 
             assertFalse(decoded.isWellFormed());
             assertEquals(23, decoded.containerId());
@@ -148,26 +142,20 @@ class PatternProviderPacketCodecTest {
     @Test
     void malformedListPacketIsRejectedBeforeHandlerEnqueue() {
         var calls = new AtomicInteger();
-        var context = (IPayloadContext) Proxy.newProxyInstance(
-                IPayloadContext.class.getClassLoader(),
-                new Class<?>[] { IPayloadContext.class },
-                (proxy, method, args) -> {
-                    calls.incrementAndGet();
-                    return null;
-                });
+        PatternProviderClientBridge.install((packet, context) -> calls.incrementAndGet());
 
-        PatternProviderClientBridge.handle(PatternProviderListPacket.reset(23, 0), context);
+        PatternProviderClientBridge.handle(PatternProviderListPacket.reset(23, 0), null);
 
         assertEquals(0, calls.get());
     }
 
     @Test
     void requestCodecRejectsTruncatedPacketWithoutThrowing() {
-        ByteBuf buf = Unpooled.buffer();
+        FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
         try {
-            ByteBufCodecs.VAR_INT.encode(buf, 31);
+            buf.writeVarInt(31);
 
-            var decoded = PatternProviderListPacket.Request.STREAM_CODEC.decode(buf);
+            var decoded = PatternProviderListPacket.Request.read(buf);
 
             assertFalse(decoded.isWellFormed());
             assertEquals(0, buf.readableBytes());
@@ -183,16 +171,15 @@ class PatternProviderPacketCodecTest {
         assertFalse(new PatternProviderListPacket.Request(0, true, (byte) 3).isWellFormed());
     }
 
-    private static void writeActionEnvelope(ByteBuf buf) {
-        ByteBufCodecs.VAR_INT.encode(buf, 7);
-        ByteBufCodecs.VAR_LONG.encode(buf, 11L);
-        ByteBufCodecs.VAR_LONG.encode(buf, 13L);
-        ByteBufCodecs.VAR_LONG.encode(buf, 17L);
-        ByteBufCodecs.VAR_INT.encode(buf, 19);
+    private static void writeActionEnvelope(FriendlyByteBuf buf) {
+        buf.writeVarInt(7);
+        buf.writeVarLong(11L);
+        buf.writeVarLong(13L);
+        buf.writeVarLong(17L);
+        buf.writeVarInt(19);
     }
 
-    private static RegistryFriendlyByteBuf registryBuffer() {
-        return new RegistryFriendlyByteBuf(
-                Unpooled.buffer(), RegistryAccess.EMPTY, ConnectionType.OTHER);
+    private static FriendlyByteBuf registryBuffer() {
+        return new FriendlyByteBuf(Unpooled.buffer());
     }
 }

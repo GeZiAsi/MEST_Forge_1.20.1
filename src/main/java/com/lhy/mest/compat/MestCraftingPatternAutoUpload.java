@@ -28,8 +28,9 @@ import com.lhy.mest.compat.plus.PlusEncodingUpload;
 public final class MestCraftingPatternAutoUpload {
     static final Set<String> FALLBACK_CRAFTING_GROUP_IDS = Set.of(
             "ae2:molecular_assembler",
-            "extendedae:ex_molecular_assembler",
-            "extendedae:assembler_matrix_pattern",
+            // ExtendedAE 1.20.x registers under the "expatternprovider" namespace.
+            "expatternprovider:ex_molecular_assembler",
+            "expatternprovider:assembler_matrix_pattern",
             "extendedae_plus:assembler_matrix_pattern_plus",
             "neoecoae:crafting_system_l4",
             "neoecoae:crafting_system_l6",
