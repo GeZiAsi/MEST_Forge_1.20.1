@@ -1,5 +1,7 @@
 package com.lhy.mest.client.dock.workspace;
 
+import com.lhy.mest.util.MestLists;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
@@ -64,15 +66,15 @@ class DockLayoutCodecTest {
     void roundTripsWindowModes() throws Exception {
         var base = WorkspacePersistenceFixtures.workspace();
         var roots = new java.util.ArrayList<>(base.roots());
-        roots.set(0, roots.getFirst().withMode(true, true));
+        roots.set(0, MestLists.first(roots).withMode(true, true));
         var original = base.withRoots(roots);
 
         String encoded = codec().encode(original);
         var decoded = codec().decode(encoded);
 
-        assertTrue(decoded.workspace().roots().getFirst().floating());
-        assertTrue(decoded.workspace().roots().getFirst().pinned());
-        assertFalse(decoded.workspace().roots().getLast().floating());
+        assertTrue(MestLists.first(decoded.workspace().roots()).floating());
+        assertTrue(MestLists.first(decoded.workspace().roots()).pinned());
+        assertFalse(MestLists.last(decoded.workspace().roots()).floating());
         assertFalse(decoded.needsRewrite());
     }
 
@@ -80,10 +82,10 @@ class DockLayoutCodecTest {
     void roundTripsCombinedModulesAndDropsDuplicateSlots() throws Exception {
         var base = WorkspacePersistenceFixtures.workspace();
         var roots = new java.util.ArrayList<>(base.roots());
-        roots.set(0, roots.getFirst().withMode(true, false).withGroup(2).withHidden(true));
+        roots.set(0, MestLists.first(roots).withMode(true, false).withGroup(2).withHidden(true));
         String encoded = codec().encode(base.withRoots(roots));
 
-        var decoded = codec().decode(encoded).workspace().roots().getFirst();
+        var decoded = MestLists.first(codec().decode(encoded).workspace().roots());
         assertEquals(2, decoded.group());
         assertTrue(decoded.hidden());
 
@@ -122,10 +124,10 @@ class DockLayoutCodecTest {
 
         var decoded = codec().decode(persisted);
 
-        assertFalse(decoded.workspace().roots().getFirst().floating());
+        assertFalse(MestLists.first(decoded.workspace().roots()).floating());
         // "c" is hidden, so only the visible, pinned "b" decides the window's mode.
-        assertTrue(decoded.workspace().roots().getLast().floating());
-        assertTrue(decoded.workspace().roots().getLast().pinned());
+        assertTrue(MestLists.last(decoded.workspace().roots()).floating());
+        assertTrue(MestLists.last(decoded.workspace().roots()).pinned());
         assertTrue(decoded.needsRewrite());
     }
 
@@ -180,7 +182,7 @@ class DockLayoutCodecTest {
         assertEquals(2, fitted.size());
 
         codec.decode(shell);
-        var current = codec.decode(codec.encode(fitted.getFirst()));
+        var current = codec.decode(codec.encode(MestLists.first(fitted)));
         assertEquals(2, fitted.size(), "shell and current-version documents keep their window sizes");
         assertFalse(current.needsRewrite());
         assertTrue(codec.decode(stretch).needsRewrite(), "legacy documents are rewritten as v6");
@@ -232,7 +234,7 @@ class DockLayoutCodecTest {
         DockLayoutCodec.DecodedLayout decoded = new DockLayoutCodec(
                 WorkspacePersistenceFixtures.catalog("a"),
                 WorkspacePersistenceFixtures.migrationContext()).decode(persisted);
-        LeafNode leaf = assertInstanceOf(LeafNode.class, decoded.workspace().roots().getFirst().content());
+        LeafNode leaf = assertInstanceOf(LeafNode.class, MestLists.first(decoded.workspace().roots()).content());
 
         assertEquals(2, decoded.sourceVersion());
         assertTrue(decoded.needsRewrite());
@@ -267,7 +269,7 @@ class DockLayoutCodecTest {
 
         assertEquals(3, decoded.sourceVersion());
         assertTrue(decoded.needsRewrite());
-        DockRect migrated = decoded.workspace().roots().getFirst().bounds();
+        DockRect migrated = MestLists.first(decoded.workspace().roots()).bounds();
         assertEquals(501 - DockWorkspaceDefaults.NETWORK_TOOLKIT_SHIFT_X, migrated.x());
         assertEquals(284, migrated.y());
         assertEquals(71, migrated.width());
@@ -276,7 +278,7 @@ class DockLayoutCodecTest {
         // The migrated position is persisted, so the shift is only ever applied once.
         DockLayoutCodec.DecodedLayout again = codec.decode(codec.encode(decoded.workspace()));
         assertFalse(again.needsRewrite());
-        assertEquals(migrated, again.workspace().roots().getFirst().bounds());
+        assertEquals(migrated, MestLists.first(again.workspace().roots()).bounds());
     }
 
     @Test
@@ -305,7 +307,7 @@ class DockLayoutCodecTest {
                 WorkspacePersistenceFixtures.catalog("network_toolkit", "a"),
                 WorkspacePersistenceFixtures.migrationContext());
 
-        DockRect bounds = codec.decode(persisted).workspace().roots().getFirst().bounds();
+        DockRect bounds = MestLists.first(codec.decode(persisted).workspace().roots()).bounds();
 
         assertEquals(501, bounds.x());
     }
@@ -331,7 +333,7 @@ class DockLayoutCodecTest {
         DockLayoutCodec.DecodedLayout decoded = new DockLayoutCodec(
                 WorkspacePersistenceFixtures.catalog("a"),
                 WorkspacePersistenceFixtures.migrationContext()).decode(persisted);
-        LeafNode leaf = assertInstanceOf(LeafNode.class, decoded.workspace().roots().getFirst().content());
+        LeafNode leaf = assertInstanceOf(LeafNode.class, MestLists.first(decoded.workspace().roots()).content());
 
         assertTrue(decoded.needsRewrite());
         assertTrue(leaf.visible());
@@ -369,7 +371,7 @@ class DockLayoutCodecTest {
         assertEquals(1, first.sourceVersion());
         assertTrue(first.migrated());
         assertEquals(first.workspace(), second.workspace());
-        SplitNode pair = assertInstanceOf(SplitNode.class, first.workspace().roots().getFirst().content());
+        SplitNode pair = assertInstanceOf(SplitNode.class, MestLists.first(first.workspace().roots()).content());
         assertEquals(0.4, pair.ratio(), 0.000001);
         assertEquals("b", ((LeafNode) pair.first()).moduleId());
         assertEquals("c", ((LeafNode) pair.second()).moduleId());
@@ -395,8 +397,8 @@ class DockLayoutCodecTest {
         var decoded = codec().decode(legacy).workspace();
 
         assertEquals(3, decoded.roots().size());
-        assertEquals("c", ((LeafNode) decoded.roots().getLast().content()).moduleId());
-        assertTrue(((LeafNode) decoded.roots().getLast().content()).visible());
+        assertEquals("c", ((LeafNode) MestLists.last(decoded.roots()).content()).moduleId());
+        assertTrue(((LeafNode) MestLists.last(decoded.roots()).content()).visible());
     }
 
     @Test
@@ -458,13 +460,13 @@ class DockLayoutCodecTest {
         assertEquals(2, decoded.workspace().roots().size());
         LeafNode retained = assertInstanceOf(
                 LeafNode.class,
-                decoded.workspace().roots().getFirst().content());
+                MestLists.first(decoded.workspace().roots()).content());
         assertEquals("a", retained.moduleId());
         assertTrue(retained.visible());
         assertFalse(decoded.workspace().policyFor("a").visible());
         LeafNode added = assertInstanceOf(
                 LeafNode.class,
-                decoded.workspace().roots().getLast().content());
+                MestLists.last(decoded.workspace().roots()).content());
         assertEquals("new_name", added.moduleId());
         assertTrue(added.visible());
     }
@@ -492,9 +494,9 @@ class DockLayoutCodecTest {
                 WorkspacePersistenceFixtures.migrationContext()).decode(persisted);
 
         DockWorkspaceCodecAssertions.assertSingleLeaf(decoded.workspace(), "a");
-        assertEquals("root-main", decoded.workspace().roots().getFirst().rootId());
-        assertEquals(200, decoded.workspace().roots().getFirst().bounds().width());
-        assertEquals(100, decoded.workspace().roots().getFirst().bounds().height());
+        assertEquals("root-main", MestLists.first(decoded.workspace().roots()).rootId());
+        assertEquals(200, MestLists.first(decoded.workspace().roots()).bounds().width());
+        assertEquals(100, MestLists.first(decoded.workspace().roots()).bounds().height());
         assertTrue(decoded.reconciled());
         assertTrue(decoded.needsRewrite());
     }
@@ -518,7 +520,7 @@ class DockLayoutCodecTest {
                 WorkspacePersistenceFixtures.catalog("new_id"),
                 WorkspacePersistenceFixtures.migrationContext()).decode(persisted);
         assertEquals(1, decoded.workspace().roots().size());
-        LeafNode leaf = assertInstanceOf(LeafNode.class, decoded.workspace().roots().getFirst().content());
+        LeafNode leaf = assertInstanceOf(LeafNode.class, MestLists.first(decoded.workspace().roots()).content());
         assertEquals("new_id", leaf.moduleId());
         assertTrue(leaf.visible());
     }
@@ -592,10 +594,10 @@ class DockLayoutCodecTest {
                 WorkspacePersistenceFixtures.migrationContext()).decode(persisted);
 
         assertEquals(2, decoded.workspace().roots().size());
-        assertEquals(preferredNewRootId, decoded.workspace().roots().getFirst().rootId());
-        assertEquals(preferredNewLeafId, decoded.workspace().roots().getFirst().content().nodeId());
-        assertFalse(preferredNewRootId.equals(decoded.workspace().roots().getLast().rootId()));
-        assertFalse(preferredNewLeafId.equals(decoded.workspace().roots().getLast().content().nodeId()));
+        assertEquals(preferredNewRootId, MestLists.first(decoded.workspace().roots()).rootId());
+        assertEquals(preferredNewLeafId, MestLists.first(decoded.workspace().roots()).content().nodeId());
+        assertFalse(preferredNewRootId.equals(MestLists.last(decoded.workspace().roots()).rootId()));
+        assertFalse(preferredNewLeafId.equals(MestLists.last(decoded.workspace().roots()).content().nodeId()));
         assertTrue(decoded.reconciled());
     }
 
@@ -605,7 +607,7 @@ class DockLayoutCodecTest {
 
         static void assertSingleLeaf(com.lhy.mest.client.dock.model.DockWorkspace workspace, String moduleId) {
             assertEquals(1, workspace.roots().size());
-            LeafNode leaf = assertInstanceOf(LeafNode.class, workspace.roots().getFirst().content());
+            LeafNode leaf = assertInstanceOf(LeafNode.class, MestLists.first(workspace.roots()).content());
             assertEquals(moduleId, leaf.moduleId());
         }
     }

@@ -16,7 +16,7 @@ import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -26,10 +26,8 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.neoforge.common.CommonHooks;
-import net.neoforged.neoforge.common.util.TriState;
-import net.neoforged.neoforge.network.PacketDistributor;
-import net.neoforged.neoforge.network.connection.ConnectionType;
+import net.minecraftforge.common.ForgeHooks;
+import net.minecraftforge.eventbus.api.Event;
 
 import appeng.api.config.ShowPatternProviders;
 import appeng.api.crafting.PatternDetailsHelper;
@@ -353,8 +351,8 @@ public final class PatternAccessSession {
         // The event reads the player's level, so it can only vouch for targets in that dimension.
         boolean sameLevel = level == player.level();
         if (sameLevel) {
-            var event = CommonHooks.onRightClickBlock(player, InteractionHand.MAIN_HAND, targetPos, hit);
-            if (event.isCanceled() || event.getUseBlock() == TriState.FALSE) {
+            var event = ForgeHooks.onRightClickBlock(player, InteractionHand.MAIN_HAND, targetPos, hit);
+            if (event.isCanceled() || event.getUseBlock() == Event.Result.DENY) {
                 return false;
             }
         }
@@ -378,7 +376,7 @@ public final class PatternAccessSession {
     private boolean tryUseTargetBlock(ServerPlayer player, ServerLevel level, BlockPos targetPos,
             BlockHitResult hit) {
         var previousMenu = player.containerMenu;
-        level.getBlockState(targetPos).useWithoutItem(level, player, hit);
+        level.getBlockState(targetPos).use(level, player, InteractionHand.MAIN_HAND, hit);
         return RemoteMenuAccess.trackOpenedMenu(player, previousMenu, level, targetPos, getCurrentGrid());
     }
 
@@ -615,12 +613,9 @@ public final class PatternAccessSession {
      * clientbound custom-payload limit even for patterns with multi-KiB NBT.
      */
     private int estimateEncodedSize(ItemStack stack) {
-        var buf = new RegistryFriendlyByteBuf(
-                Unpooled.buffer(),
-                menu.getPlayer().registryAccess(),
-                ConnectionType.NEOFORGE);
+        var buf = new FriendlyByteBuf(Unpooled.buffer());
         try {
-            ItemStack.OPTIONAL_STREAM_CODEC.encode(buf, stack);
+            buf.writeItem(stack);
             return buf.readableBytes();
         } catch (RuntimeException exception) {
             // Force this stack into a chunk of its own if it cannot be measured.
@@ -647,7 +642,7 @@ public final class PatternAccessSession {
 
     private void flush(ServerPlayer player, long gameTick) {
         while (!outbound.isEmpty() && packetBudget.tryAcquire(gameTick)) {
-            PacketDistributor.sendToPlayer(player, outbound.removeFirst());
+            MestPackets.sendToPlayer(player, outbound.removeFirst());
         }
     }
 
@@ -700,7 +695,7 @@ public final class PatternAccessSession {
         }
         // Only take back the pattern that was uploaded; the slot may have been emptied or reused.
         ItemStack present = tracker.inventory.extractItem(lastUploadSlot, 1, true);
-        if (!ItemStack.isSameItemSameComponents(present, lastUploadPattern)) {
+        if (!ItemStack.isSameItemSameTags(present, lastUploadPattern)) {
             return;
         }
         ItemStack extracted = tracker.inventory.extractItem(lastUploadSlot, 1, false);

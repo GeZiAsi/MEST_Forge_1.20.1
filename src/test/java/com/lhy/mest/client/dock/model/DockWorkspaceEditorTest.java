@@ -1,5 +1,7 @@
 package com.lhy.mest.client.dock.model;
 
+import com.lhy.mest.util.MestLists;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
@@ -22,14 +24,14 @@ class DockWorkspaceEditorTest {
         DockWorkspace first = editor.insertSplit(
                 initial, "leaf-a", "leaf-b", DockEdge.LEFT, "split-ab", 0.4);
         assertEquals(List.of("root-b", "root-c"), rootIds(first));
-        SplitNode splitAb = assertInstanceOf(SplitNode.class, first.roots().getFirst().content());
+        SplitNode splitAb = assertInstanceOf(SplitNode.class, MestLists.first(first.roots()).content());
         assertEquals("leaf-a", splitAb.first().nodeId());
         assertEquals("leaf-b", splitAb.second().nodeId());
 
         DockWorkspace nested = editor.insertSplit(
                 first, "leaf-c", "leaf-b", DockEdge.BOTTOM, "split-bc", 0.5);
         assertEquals(List.of("root-b"), rootIds(nested));
-        SplitNode outer = assertInstanceOf(SplitNode.class, nested.roots().getFirst().content());
+        SplitNode outer = assertInstanceOf(SplitNode.class, MestLists.first(nested.roots()).content());
         SplitNode inner = assertInstanceOf(SplitNode.class, outer.second());
         assertEquals("leaf-b", inner.first().nodeId());
         assertEquals("leaf-c", inner.second().nodeId());
@@ -37,8 +39,8 @@ class DockWorkspaceEditorTest {
         DockWorkspace detached = editor.detach(
                 nested, "split-bc", "root-bc", new DockRect(200, 40, 160, 100));
         assertEquals(List.of("root-b", "root-bc"), rootIds(detached));
-        assertEquals("leaf-a", detached.roots().getFirst().content().nodeId());
-        assertEquals("split-bc", detached.roots().getLast().content().nodeId());
+        assertEquals("leaf-a", MestLists.first(detached.roots()).content().nodeId());
+        assertEquals("split-bc", MestLists.last(detached.roots()).content().nodeId());
     }
 
     @Test
@@ -49,8 +51,8 @@ class DockWorkspaceEditorTest {
                 workspace(), "leaf-a", "leaf-b", DockEdge.LEFT, "split-ab", 0.5);
 
         DockWorkspace hidden = editor.setLeafVisible(
-                joined, "leaf-a", false, joined.roots().getFirst().bounds(), null, null);
-        SplitNode split = assertInstanceOf(SplitNode.class, hidden.roots().getFirst().content());
+                joined, "leaf-a", false, MestLists.first(joined.roots()).bounds(), null, null);
+        SplitNode split = assertInstanceOf(SplitNode.class, MestLists.first(hidden.roots()).content());
         assertEquals("split-ab", split.nodeId(), "visibility must not rewrite the tree");
         assertTrue(((LeafNode) split.first()).visible(), "tree visibility is normalized structural data");
         assertFalse(hidden.policyFor("a").visible());
@@ -60,7 +62,7 @@ class DockWorkspaceEditorTest {
                 new LayoutStyle(DockInsets.NONE, 4)).project(hidden);
         assertFalse(projection.isEffectivelyVisible("leaf-a"));
         assertEquals(
-                hidden.roots().getFirst().bounds(),
+                MestLists.first(hidden.roots()).bounds(),
                 projection.visibleLeaf("leaf-b").orElseThrow().bounds());
     }
 
@@ -78,17 +80,17 @@ class DockWorkspaceEditorTest {
         DockWorkspace hidden = editor.setLeafVisible(
                 joined, "leaf-b", false, new DockRect(214, 20, 90, 80), null, null);
         assertEquals(1, hidden.roots().size());
-        assertEquals(new DockRect(10, 20, 204, 80), hidden.roots().getFirst().bounds());
+        assertEquals(new DockRect(10, 20, 204, 80), MestLists.first(hidden.roots()).bounds());
         assertEquals(new DockSize(90, 80), hidden.restoreSizes().get("leaf-b"));
         assertFalse(hidden.policyFor("b").visible());
 
         DockWorkspace shown = editor.setLeafVisible(
                 hidden, "leaf-b", true, null, "root-b2", new DockRect(214, 20, 80, 80));
         assertEquals(2, shown.roots().size());
-        assertEquals(new DockRect(10, 20, 204, 80), shown.roots().getFirst().bounds());
-        assertEquals(new DockRect(214, 20, 90, 80), shown.roots().getLast().bounds());
+        assertEquals(new DockRect(10, 20, 204, 80), MestLists.first(shown.roots()).bounds());
+        assertEquals(new DockRect(214, 20, 90, 80), MestLists.last(shown.roots()).bounds());
         assertTrue(shown.policyFor("b").visible());
-        assertEquals("leaf-b", shown.roots().getLast().content().nodeId());
+        assertEquals("leaf-b", MestLists.last(shown.roots()).content().nodeId());
     }
 
     @Test
@@ -122,7 +124,7 @@ class DockWorkspaceEditorTest {
 
         DockWorkspace resized = editor.setSplitRatio(nested, "split-bc", 0.7);
 
-        SplitNode outer = assertInstanceOf(SplitNode.class, resized.roots().getFirst().content());
+        SplitNode outer = assertInstanceOf(SplitNode.class, MestLists.first(resized.roots()).content());
         SplitNode inner = assertInstanceOf(SplitNode.class, outer.second());
         assertEquals(0.7, inner.ratio());
         assertEquals("leaf-b", inner.first().nodeId());
@@ -153,7 +155,7 @@ class DockWorkspaceEditorTest {
                 current, "split-be", "root-be", new DockRect(200, 40, 160, 100));
         WorkspaceValidator.validateStrict(detached, catalog);
         assertEquals(2, detached.roots().size());
-        assertEquals("split-be", detached.roots().getLast().content().nodeId());
+        assertEquals("split-be", MestLists.last(detached.roots()).content().nodeId());
     }
 
     @Test
@@ -210,7 +212,7 @@ class DockWorkspaceEditorTest {
         DockWorkspace centered = editor.centerRoots(
                 workspace, List.of("root-a"), new DockRect(0, 10, 100, 80), 400, 240);
 
-        assertEquals(new DockRect(150, 80, 122, 80), centered.roots().getFirst().bounds());
+        assertEquals(new DockRect(150, 80, 122, 80), MestLists.first(centered.roots()).bounds());
     }
 
     @Test
@@ -236,8 +238,8 @@ class DockWorkspaceEditorTest {
 
         DockWorkspace detached = editor.detach(
                 joined, "leaf-b", "root-b2", new DockRect(214, 20, 80, 80));
-        assertEquals(new DockRect(214, 20, 90, 60), detached.roots().getLast().bounds());
-        assertEquals("leaf-a", detached.roots().getFirst().content().nodeId());
+        assertEquals(new DockRect(214, 20, 90, 60), MestLists.last(detached.roots()).bounds());
+        assertEquals("leaf-a", MestLists.first(detached.roots()).content().nodeId());
     }
 
     private static DockWorkspace workspace() {
@@ -261,17 +263,17 @@ class DockWorkspaceEditorTest {
 
         // Splicing an anchored window into a floating one keeps the host's mode.
         DockWorkspace joined = editor.insertSplit(floated, "leaf-a", "leaf-b", DockEdge.LEFT, "split-ab", 0.5);
-        FloatingRoot host = joined.roots().getFirst();
+        FloatingRoot host = MestLists.first(joined.roots());
         assertEquals("root-b", host.rootId());
         assertTrue(host.floating());
 
         // A section taken out of an anchored window floats on its own.
         DockWorkspace docked = editor.setRootMode(joined, "root-b", false, true);
-        assertFalse(docked.roots().getFirst().floating());
-        assertFalse(docked.roots().getFirst().pinned(), "docking drops the pin");
+        assertFalse(MestLists.first(docked.roots()).floating());
+        assertFalse(MestLists.first(docked.roots()).pinned(), "docking drops the pin");
         DockWorkspace detached = editor.detach(docked, "leaf-a", "root-a2", new DockRect(0, 0, 80, 60));
-        assertFalse(detached.roots().getFirst().floating());
-        assertTrue(detached.roots().getLast().floating());
+        assertFalse(MestLists.first(detached.roots()).floating());
+        assertTrue(MestLists.last(detached.roots()).floating());
     }
 
     @Test

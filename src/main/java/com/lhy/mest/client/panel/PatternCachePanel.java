@@ -12,7 +12,7 @@ import net.minecraft.client.renderer.Rect2i;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.inventory.Slot;
-import net.neoforged.neoforge.network.PacketDistributor;
+import com.lhy.mest.network.MestPackets;
 
 import appeng.client.Point;
 import appeng.client.gui.Icon;
@@ -48,7 +48,7 @@ public class PatternCachePanel extends ModulePanel {
     private static final int INSIDE_GUTTER = INSIDE_TRACK_GAP + TRACK_WIDTH + TRACK_SHIFT_X;
     private static final int TRACK_BORDER = 0xFFF2F2F2;
     private static final int TRACK_FILL = 0xFF9A9FB4;
-    private static final ResourceLocation STATES = ResourceLocation.fromNamespaceAndPath(
+    private static final ResourceLocation STATES = new ResourceLocation(
             MESplicedterminal.MODID, "textures/guis/pattern_cache_states.png");
     private static final ResourceLocation CHECKBOX = AppEng.makeId("textures/guis/checkbox.png");
 
@@ -403,7 +403,7 @@ public class PatternCachePanel extends ModulePanel {
             super(0, 0, BUTTON_W, BUTTON_H, Component.empty(), button -> {
                 PatternCacheActionPacket.Action send =
                         shiftAction != null && Screen.hasShiftDown() ? shiftAction : action;
-                PacketDistributor.sendToServer(new PatternCacheActionPacket(send, false));
+                MestPackets.sendToServer(new PatternCacheActionPacket(send, false));
             }, Button.DEFAULT_NARRATION);
             this.label = label;
             this.shiftLabel = shiftLabel;
@@ -461,7 +461,7 @@ public class PatternCachePanel extends ModulePanel {
             super(0, 0, TOGGLE_SIZE, TOGGLE_SIZE, Component.empty(), button -> {
                 SubstitutionButton self = (SubstitutionButton) button;
                 self.selected = !self.selected;
-                PacketDistributor.sendToServer(new PatternCacheActionPacket(
+                MestPackets.sendToServer(new PatternCacheActionPacket(
                         item ? PatternCacheActionPacket.Action.ITEM_SUBSTITUTION
                                 : PatternCacheActionPacket.Action.FLUID_SUBSTITUTION,
                         self.selected));

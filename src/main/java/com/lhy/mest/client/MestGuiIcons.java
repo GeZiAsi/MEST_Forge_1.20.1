@@ -9,9 +9,9 @@ import com.lhy.mest.MESplicedterminal;
 
 /** 16×16 icons from {@code layout_preset_icons.png} and the spliced-terminal WUT icon. */
 public final class MestGuiIcons {
-    public static final ResourceLocation ATLAS = ResourceLocation.fromNamespaceAndPath(
+    public static final ResourceLocation ATLAS = new ResourceLocation(
             MESplicedterminal.MODID, "textures/guis/layout_preset_icons.png");
-    public static final ResourceLocation SPLICED_TERMINAL = ResourceLocation.fromNamespaceAndPath(
+    public static final ResourceLocation SPLICED_TERMINAL = new ResourceLocation(
             MESplicedterminal.MODID, "textures/guis/spliced_terminal_icon.png");
     public static final int SIZE = 16;
 
@@ -27,7 +27,7 @@ public final class MestGuiIcons {
         var blitter = Blitter.texture(ATLAS, 256, 256)
                 .src(col * SIZE, row * SIZE, SIZE, SIZE)
                 .dest(x, y, w, h)
-                .zOffset(3);
+;
         if (opacity < 1.0F) {
             blitter.opacity(opacity);
         }
@@ -41,7 +41,7 @@ public final class MestGuiIcons {
         Blitter.texture(ATLAS, 256, 256)
                 .src(u, row * SIZE, srcW, SIZE)
                 .dest(x, y, w, h)
-                .zOffset(3)
+
                 .blit(graphics);
     }
 
@@ -50,7 +50,7 @@ public final class MestGuiIcons {
         var blitter = Blitter.texture(ATLAS, 256, 256)
                 .src(144 + (group - 1) * SIZE, SIZE, SIZE, SIZE)
                 .dest(x, y, w, h)
-                .zOffset(3);
+;
         if (opacity < 1.0F) {
             blitter.opacity(opacity);
         }

@@ -2,21 +2,20 @@ package com.lhy.mest.network;
 
 import java.util.Objects;
 
-import net.neoforged.neoforge.network.handling.IPayloadContext;
-import net.neoforged.neoforge.network.handling.IPayloadHandler;
+import java.util.function.BiConsumer;
 
 public final class ProviderPickerClientBridge {
-    private static volatile IPayloadHandler<ProviderPickerListPacket> handler = (packet, context) -> {
+    private static volatile BiConsumer<ProviderPickerListPacket, PacketContext> handler = (packet, context) -> {
     };
 
     private ProviderPickerClientBridge() {
     }
 
-    public static void install(IPayloadHandler<ProviderPickerListPacket> clientHandler) {
+    public static void install(BiConsumer<ProviderPickerListPacket, PacketContext> clientHandler) {
         handler = Objects.requireNonNull(clientHandler, "clientHandler");
     }
 
-    public static void handle(ProviderPickerListPacket packet, IPayloadContext context) {
-        handler.handle(packet, context);
+    public static void handle(ProviderPickerListPacket packet, PacketContext context) {
+        handler.accept(packet, context);
     }
 }

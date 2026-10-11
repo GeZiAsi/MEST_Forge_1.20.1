@@ -10,16 +10,17 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.HitResult;
 
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.bus.api.EventPriority;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.ModList;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.client.event.InputEvent;
-import net.neoforged.neoforge.client.event.ScreenEvent;
-import net.neoforged.neoforge.network.PacketDistributor;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.eventbus.api.EventPriority;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.ModList;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.client.event.InputEvent;
+import net.minecraftforge.client.event.ScreenEvent;
+import com.lhy.mest.network.MestPackets;
 
-import de.mari_023.ae2wtlib.api.AE2wtlibComponents;
+import de.mari_023.ae2wtlib.AE2wtlibTags;
+import de.mari_023.ae2wtlib.terminal.ItemWT;
 
 import com.lhy.mest.MESplicedterminal;
 import com.lhy.mest.compat.MestWtlibSupport;
@@ -79,13 +80,13 @@ public final class MestWtlibClientEvents {
             return;
         }
         ItemStack mest = MestWtlibSupport.mestStack(player);
-        if (mest.isEmpty() || !mest.getOrDefault(AE2wtlibComponents.PICK_BLOCK, false)) {
+        if (mest.isEmpty() || !ItemWT.getBoolean(mest, AE2wtlibTags.PICK_BLOCK)) {
             return;
         }
         if (player.getInventory().findSlotMatchingItem(picked) != -1) {
             return;
         }
-        PacketDistributor.sendToServer(new MestPickBlockPacket(picked));
+        MestPackets.sendToServer(new MestPickBlockPacket(picked));
     }
 
     private static ItemStack stackFromHit(Minecraft minecraft) {

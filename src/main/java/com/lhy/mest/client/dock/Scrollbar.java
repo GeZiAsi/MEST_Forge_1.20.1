@@ -71,8 +71,7 @@ public class Scrollbar {
         }
         int thumbH = thumbHeight(trackH);
         int thumbY = thumbY(trackY, trackH, thumbH, scroll, maxScroll);
-        var sprite = AppEng.makeId(maxScroll <= 0 ? "small_scroller_disabled" : "small_scroller");
-        Blitter.guiSprite(sprite).dest(trackX, thumbY).blit(g);
+        com.lhy.mest.client.GuiSprites.smallScroller(g, trackX, thumbY, maxScroll > 0);
     }
 
     public static void drawTerminalTrack(GuiGraphics g, int x, int y, int height) {

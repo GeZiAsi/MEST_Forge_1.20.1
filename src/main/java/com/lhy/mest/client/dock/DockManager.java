@@ -1,5 +1,7 @@
 package com.lhy.mest.client.dock;
 
+import com.lhy.mest.util.MestLists;
+
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -22,7 +24,7 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.inventory.Slot;
-import net.neoforged.fml.loading.FMLPaths;
+import net.minecraftforge.fml.loading.FMLPaths;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -327,7 +329,7 @@ public final class DockManager {
             pick = panelsByModuleId.get("me_list");
         }
         if (pick == null && !panels.isEmpty()) {
-            pick = panels.getFirst();
+            pick = MestLists.first(panels);
         }
         if (pick == null) {
             return false;
@@ -1490,7 +1492,7 @@ public final class DockManager {
             return;
         }
         FloatingRoot root = topRootAt(mouseX, mouseY, null);
-        if (root == null || viewportWorkspace.roots().getLast().rootId().equals(root.rootId())) {
+        if (root == null || MestLists.last(viewportWorkspace.roots()).rootId().equals(root.rootId())) {
             return;
         }
         DockWorkspace beforeInteraction = workspace;
@@ -1553,7 +1555,7 @@ public final class DockManager {
             replaceWorkspace(detached, true);
             activeRootId = newRootId;
             root = rootById(newRootId);
-        } else if (!viewportWorkspace.roots().getLast().rootId().equals(root.rootId())) {
+        } else if (!MestLists.last(viewportWorkspace.roots()).rootId().equals(root.rootId())) {
             replaceWorkspace(editor.raiseRoot(workspace, root.rootId()), false);
         }
 
@@ -1675,7 +1677,7 @@ public final class DockManager {
 
         DockWorkspace beforeInteraction = takeInteractionStartWorkspace();
         boolean rootRaised = !beforeInteraction.equals(workspace);
-        if (!viewportWorkspace.roots().getLast().rootId().equals(root.rootId())) {
+        if (!MestLists.last(viewportWorkspace.roots()).rootId().equals(root.rootId())) {
             replaceWorkspace(editor.raiseRoot(workspace, root.rootId()), false);
             rootRaised = rootRaised || !beforeInteraction.equals(workspace);
             root = rootById(root.rootId());

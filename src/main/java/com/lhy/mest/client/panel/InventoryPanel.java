@@ -1,6 +1,8 @@
 package com.lhy.mest.client.panel;
 
 import appeng.client.gui.Icon;
+
+import com.lhy.mest.client.Ae2Icons;
 import java.util.List;
 
 import net.minecraft.client.gui.Font;
@@ -37,7 +39,7 @@ public class InventoryPanel extends ModulePanel {
 
     @Override
     public Icon icon() {
-        return Icon.S_STORAGE;
+        return Ae2Icons.S_STORAGE;
     }
 
     @Override

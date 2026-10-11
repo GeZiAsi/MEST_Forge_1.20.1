@@ -1,5 +1,7 @@
 package com.lhy.mest.client;
 
+import com.lhy.mest.util.MestLists;
+
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
@@ -19,6 +21,8 @@ import net.minecraft.resources.ResourceLocation;
 
 import appeng.client.gui.AEBaseScreen;
 import appeng.client.gui.Icon;
+
+import com.lhy.mest.client.Ae2Icons;
 import appeng.client.gui.style.BackgroundGenerator;
 import appeng.client.gui.style.Blitter;
 import appeng.client.gui.style.ScreenStyle;
@@ -339,7 +343,7 @@ public final class MESTLayoutEditorScreen extends Screen {
         buildNameBox();
         if (selected == null || !panels.contains(selected)) {
             if (!panels.isEmpty()) {
-                selected = panels.getFirst();
+                selected = MestLists.first(panels);
             }
         }
     }
@@ -691,14 +695,14 @@ public final class MESTLayoutEditorScreen extends Screen {
     }
 
     @Override
-    public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
+    public boolean mouseScrolled(double mouseX, double mouseY, double scrollY) {
         if (mouseX >= canvasLeft() && mouseX < canvasRight() && mouseY >= canvasTop()) {
             ModulePanel panel = dock.topLeafAt(mouseX, mouseY);
             if (panel != null && panel.mouseScrolled(mouseX, mouseY, scrollY)) {
                 return true;
             }
         }
-        return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
+        return super.mouseScrolled(mouseX, mouseY, scrollY);
     }
 
     @Override
@@ -714,7 +718,7 @@ public final class MESTLayoutEditorScreen extends Screen {
     @Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         syncResizeCursor(mouseX, mouseY);
-        renderBackground(graphics, mouseX, mouseY, partialTick);
+        renderBackground(graphics);
         syncEditorCanvas();
         renderCanvas(graphics);
         dock.renderBackground(graphics, font, mouseX, mouseY, partialTick, (g, slot) -> { });
@@ -938,7 +942,7 @@ public final class MESTLayoutEditorScreen extends Screen {
             }
             if (sidebarCollapsed) {
                 Icon background = shown || hovered
-                        ? Icon.TOOLBAR_BUTTON_BACKGROUND_HOVER : Icon.TOOLBAR_BUTTON_BACKGROUND;
+                        ? Ae2Icons.TOOLBAR_BUTTON_BACKGROUND_HOVER : Icon.TOOLBAR_BUTTON_BACKGROUND;
                 int bx = row.x + (row.w - background.width) / 2;
                 int by = row.y + (row.h - background.height) / 2;
                 background.getBlitter().dest(bx, by).blit(graphics);
@@ -1059,7 +1063,7 @@ public final class MESTLayoutEditorScreen extends Screen {
     private void drawCollapsedPropertyIcon(
             GuiGraphics graphics, Rect rect, int index, boolean enabled, boolean hovered) {
         Icon background = enabled || hovered
-                ? Icon.TOOLBAR_BUTTON_BACKGROUND_HOVER
+                ? Ae2Icons.TOOLBAR_BUTTON_BACKGROUND_HOVER
                 : Icon.TOOLBAR_BUTTON_BACKGROUND;
         int bx = rect.x + (rect.w - background.width) / 2;
         int by = rect.y + (rect.h - background.height) / 2;
@@ -1082,7 +1086,7 @@ public final class MESTLayoutEditorScreen extends Screen {
     }
 
     private void drawCollapseButton(GuiGraphics graphics, Rect rect, boolean expandToRight, boolean hovered) {
-        Icon background = hovered ? Icon.TOOLBAR_BUTTON_BACKGROUND_HOVER : Icon.TOOLBAR_BUTTON_BACKGROUND;
+        Icon background = hovered ? Ae2Icons.TOOLBAR_BUTTON_BACKGROUND_HOVER : Icon.TOOLBAR_BUTTON_BACKGROUND;
         int bx = rect.x + (rect.w - background.width) / 2;
         int by = rect.y + (rect.h - background.height) / 2;
         background.getBlitter().dest(bx, by).blit(graphics);
@@ -1099,14 +1103,14 @@ public final class MESTLayoutEditorScreen extends Screen {
             case 1 -> enabled ? Icon.ACCESS_READ_WRITE : Icon.ACCESS_READ;
             case 2 -> enabled ? Icon.TERMINAL_STYLE_FULL : Icon.TERMINAL_STYLE_SMALL;
             case 3 -> enabled ? Icon.PATTERN_ACCESS_SHOW : Icon.PATTERN_ACCESS_HIDE;
-            default -> enabled ? Icon.COG : Icon.BACKGROUND_PRIMARY_OUTPUT;
+            default -> enabled ? Ae2Icons.COG : Icon.BACKGROUND_PRIMARY_OUTPUT;
         };
     }
 
     private static void drawToolbarPanelButton(
             GuiGraphics graphics, Rect rect, ModulePanel panel, boolean hovered, boolean focused) {
         Icon background = focused || hovered
-                ? Icon.TOOLBAR_BUTTON_BACKGROUND_HOVER
+                ? Ae2Icons.TOOLBAR_BUTTON_BACKGROUND_HOVER
                 : Icon.TOOLBAR_BUTTON_BACKGROUND;
         int bx = rect.x + (rect.w - background.width) / 2;
         int by = rect.y + (rect.h - background.height) / 2;
@@ -1119,8 +1123,8 @@ public final class MESTLayoutEditorScreen extends Screen {
     private static void drawToolbarIconButton(
             GuiGraphics graphics, Rect rect, Icon icon, boolean hovered, boolean focused) {
         Icon background = focused
-                ? Icon.TOOLBAR_BUTTON_BACKGROUND_FOCUS
-                : hovered ? Icon.TOOLBAR_BUTTON_BACKGROUND_HOVER : Icon.TOOLBAR_BUTTON_BACKGROUND;
+                ? Ae2Icons.TOOLBAR_BUTTON_BACKGROUND_FOCUS
+                : hovered ? Ae2Icons.TOOLBAR_BUTTON_BACKGROUND_HOVER : Icon.TOOLBAR_BUTTON_BACKGROUND;
         int bx = rect.x + (rect.w - background.width) / 2;
         int by = rect.y + (rect.h - background.height) / 2;
         background.getBlitter().dest(bx, by).blit(graphics);
@@ -1138,7 +1142,7 @@ public final class MESTLayoutEditorScreen extends Screen {
 
         boolean canUndo = dock.canUndoLayout();
         drawToolbarIconButton(graphics, toolbarIconRect(TOOLBAR_ICON_UNDO),
-                Icon.BACK,
+                Ae2Icons.BACK,
                 canUndo && toolbarIconRect(TOOLBAR_ICON_UNDO).contains(mouseX, mouseY), false);
         drawToolbarIconButton(graphics, toolbarIconRect(TOOLBAR_ICON_RESET),
                 Icon.SCHEDULING_ROUND_ROBIN,
@@ -1189,7 +1193,7 @@ public final class MESTLayoutEditorScreen extends Screen {
     }
 
     private static final class NameSaveButton extends Button implements ITooltip {
-        private static final ResourceLocation STATES = ResourceLocation.fromNamespaceAndPath(
+        private static final ResourceLocation STATES = new ResourceLocation(
                 MESplicedterminal.MODID, "textures/guis/pattern_cache_states.png");
 
         NameSaveButton(OnPress onPress) {

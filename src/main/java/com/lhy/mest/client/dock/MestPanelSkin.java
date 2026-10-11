@@ -18,7 +18,7 @@ import com.lhy.mest.MESplicedterminal;
  */
 public final class MestPanelSkin {
     /** {@code mesplicedterminal:textures/guis/network_tool_panel.png} */
-    public static final ResourceLocation PANEL = ResourceLocation.fromNamespaceAndPath(
+    public static final ResourceLocation PANEL = new ResourceLocation(
             MESplicedterminal.MODID, "textures/guis/network_tool_panel.png");
     private static final Blitter TEXTURE = Blitter.texture(PANEL, 256, 256);
     private static final int BORDER = 4;

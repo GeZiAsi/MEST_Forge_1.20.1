@@ -1,9 +1,10 @@
 package com.lhy.mest.registry;
 
-import net.minecraft.core.registries.Registries;
 import net.minecraft.world.item.crafting.RecipeSerializer;
-import net.neoforged.neoforge.registries.DeferredHolder;
-import net.neoforged.neoforge.registries.DeferredRegister;
+import net.minecraft.world.item.crafting.SimpleCraftingRecipeSerializer;
+import net.minecraftforge.registries.DeferredRegister;
+import net.minecraftforge.registries.ForgeRegistries;
+import net.minecraftforge.registries.RegistryObject;
 
 import com.lhy.mest.MESplicedterminal;
 import com.lhy.mest.recipe.MestWutCombineRecipe;
@@ -13,8 +14,8 @@ public final class ModRecipes {
     }
 
     public static final DeferredRegister<RecipeSerializer<?>> SERIALIZERS =
-            DeferredRegister.create(Registries.RECIPE_SERIALIZER, MESplicedterminal.MODID);
+            DeferredRegister.create(ForgeRegistries.RECIPE_SERIALIZERS, MESplicedterminal.MODID);
 
-    public static final DeferredHolder<RecipeSerializer<?>, RecipeSerializer<MestWutCombineRecipe>> WUT_COMBINE =
-            SERIALIZERS.register("wut_combine", MestWutCombineRecipe.Serializer::new);
+    public static final RegistryObject<SimpleCraftingRecipeSerializer<MestWutCombineRecipe>> WUT_COMBINE =
+            SERIALIZERS.register("wut_combine", () -> new SimpleCraftingRecipeSerializer<>(MestWutCombineRecipe::new));
 }

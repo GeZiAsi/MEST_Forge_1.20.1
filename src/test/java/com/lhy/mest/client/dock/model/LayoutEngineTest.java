@@ -1,5 +1,7 @@
 package com.lhy.mest.client.dock.model;
 
+import com.lhy.mest.util.MestLists;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -66,7 +68,7 @@ class LayoutEngineTest {
         // A 0.1 ratio cannot squeeze "wide" below its preferred 70px; it only gets 10% of the slack.
         assertEquals(71, projection.visibleLeaf("leaf-wide").orElseThrow().bounds().width());
         assertEquals(25, projection.visibleLeaf("leaf-narrow").orElseThrow().bounds().width());
-        assertEquals(new DockRect(71, 0, 4, 40), projection.dividers().getFirst().bounds());
+        assertEquals(new DockRect(71, 0, 4, 40), MestLists.first(projection.dividers()).bounds());
     }
 
     @Test

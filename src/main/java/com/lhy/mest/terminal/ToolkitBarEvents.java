@@ -4,21 +4,21 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.ItemStack;
-import net.neoforged.bus.api.EventPriority;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.entity.living.LivingSwapItemsEvent;
-import net.neoforged.neoforge.event.entity.player.PlayerEvent;
-import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
-import net.neoforged.neoforge.event.tick.PlayerTickEvent;
+import net.minecraftforge.common.MinecraftForge;
+import net.minecraftforge.event.TickEvent;
+import net.minecraftforge.event.entity.player.PlayerEvent;
+import net.minecraftforge.event.entity.player.PlayerInteractEvent;
+import net.minecraftforge.eventbus.api.EventPriority;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
 
-import com.lhy.mest.MESplicedterminal;
 import com.lhy.mest.network.ToolkitBarSyncPacket;
 
-@EventBusSubscriber(modid = MESplicedterminal.MODID)
 public final class ToolkitBarEvents {
     private ToolkitBarEvents() {}
+
+    public static void register() {
+        MinecraftForge.EVENT_BUS.register(ToolkitBarEvents.class);
+    }
 
     /**
      * Equip from the extra bar is not a vanilla hotbar swap. Cancel {@code use()} on both sides so
@@ -41,15 +41,12 @@ public final class ToolkitBarEvents {
         event.setCancellationResult(result);
     }
 
+    /** The toolkit belongs to the player and survives death and the return from the End. */
     @SubscribeEvent
-    public static void onSwapHands(LivingSwapItemsEvent.Hands event) {
-        if (!(event.getEntity() instanceof Player player) || !ToolkitHand.isOverrideActive(player)) {
-            return;
-        }
-        ItemStack toMain = event.getItemSwappedToMainHand();
-        if (!toMain.isEmpty() && !ToolkitBarState.mayStore(toMain)) {
-            event.setCanceled(true);
-        }
+    public static void onClone(PlayerEvent.Clone event) {
+        Player original = event.getOriginal();
+        Player replacement = event.getEntity();
+        ToolkitBarState.data(replacement).load(ToolkitBarState.data(original).save());
     }
 
     @SubscribeEvent
@@ -75,8 +72,11 @@ public final class ToolkitBarEvents {
     }
 
     @SubscribeEvent
-    public static void onPlayerTick(PlayerTickEvent.Post event) {
-        if (event.getEntity() instanceof ServerPlayer player) {
+    public static void onPlayerTick(TickEvent.PlayerTickEvent event) {
+        if (event.phase != TickEvent.Phase.END) {
+            return;
+        }
+        if (event.player instanceof ServerPlayer player) {
             if (ToolkitBarState.storedBar(player) != ToolkitBarState.Bar.CENTER
                     && !ToolkitBarState.isBarEnabled(player)) {
                 ToolkitBarState.setSelection(

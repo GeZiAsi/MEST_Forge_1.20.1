@@ -1,5 +1,7 @@
 package com.lhy.mest.client.panel;
 
+import com.lhy.mest.util.MestLists;
+
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -24,8 +26,8 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.world.item.ItemStack;
-import net.neoforged.fml.ModList;
-import net.neoforged.neoforge.network.PacketDistributor;
+import net.minecraftforge.fml.ModList;
+import com.lhy.mest.network.MestPackets;
 
 import appeng.api.config.ShowPatternProviders;
 import appeng.api.crafting.IPatternDetails;
@@ -44,8 +46,7 @@ import appeng.core.localization.ButtonToolTips;
 import appeng.core.localization.GuiText;
 
 import com.lhy.mest.compat.plus.PlusPatternAccess;
-import com.glodblock.github.extendedae.client.button.EPPIcon;
-import com.glodblock.github.extendedae.client.button.HighlightButtonSmall;
+import com.glodblock.github.extendedae.client.button.HighlightButton;
 import com.glodblock.github.extendedae.util.MessageUtil;
 import com.lhy.mest.client.PinyinSearch;
 import com.lhy.mest.network.PatternProviderLoc;
@@ -79,8 +80,6 @@ public class PatternAccessPanel extends ModulePanel {
     private static final int TRACK_WIDTH = 12;
     private static final int INSIDE_TRACK_GAP = 6;
     private static final int INSIDE_GUTTER = INSIDE_TRACK_GAP + TRACK_WIDTH;
-    private static final ResourceLocation RAIL_SPRITE = ResourceLocation.fromNamespaceAndPath(
-            MESplicedterminal.MODID, "vertical_buttons_bg");
     private static final int MATCH_HIGHLIGHT = 0x66ACE9FF;
     private static final int UNMATCHED_DIM = 0x6A000000;
     private static final int SLOT_HOVER_FILL = 0x669CD3FF;
@@ -92,7 +91,7 @@ public class PatternAccessPanel extends ModulePanel {
 
     private final ScreenStyle style;
     private final List<Entry> providers = new ArrayList<>();
-    private final Scrollbar scrollbar = new Scrollbar(Scrollbar.BIG);
+    private final Scrollbar scrollbar = new Scrollbar(Scrollbar.DEFAULT);
     private static SearchMode rememberedSearchMode = SearchMode.OUT;
     private static ShowPatternProviders rememberedShowMode = ShowPatternProviders.VISIBLE;
     private static boolean rememberedShowSlots = true;
@@ -106,7 +105,7 @@ public class PatternAccessPanel extends ModulePanel {
             btn -> cycleShowMode(), this::showModeIcon, this::showModeTooltip);
     private final CompactPatButton hideSlotsButton = new CompactPatButton(
             btn -> toggleShowSlots(), this::hideSlotsIcon, this::hideSlotsTooltip);
-    private final java.util.HashMap<Long, HighlightButtonSmall> highlightButtons = new java.util.HashMap<>();
+    private final java.util.HashMap<Long, HighlightButton> highlightButtons = new java.util.HashMap<>();
     private final java.util.HashMap<Long, Button> openUiButtons = new java.util.HashMap<>();
     private int scrollRows;
     private SlotHit lastShiftExtract;
@@ -372,7 +371,7 @@ public class PatternAccessPanel extends ModulePanel {
                 return;
             }
         }
-        for (HighlightButtonSmall highlight : highlightButtons.values()) {
+        for (HighlightButton highlight : highlightButtons.values()) {
             if (highlight.visible && highlight.isMouseOver(mouseX, mouseY)
                     && !highlight.getTooltipMessage().isEmpty()) {
                 g.renderComponentTooltip(font, highlight.getTooltipMessage(), mouseX, mouseY);
@@ -494,10 +493,10 @@ public class PatternAccessPanel extends ModulePanel {
             return PlusPatternAccess.patternOutputText(pattern);
         }
         var details = PatternDetailsHelper.decodePattern(pattern, Minecraft.getInstance().level);
-        if (details == null || details.getOutputs().isEmpty()) {
+        if (details == null || details.getOutputs().length == 0) {
             return "";
         }
-        long amount = details.getOutputs().getFirst().amount();
+        long amount = details.getOutputs()[0].amount();
         return amount > 1 ? String.valueOf(amount) : "";
     }
 
@@ -577,7 +576,7 @@ public class PatternAccessPanel extends ModulePanel {
                 || hideSlotsButton.mouseClicked(mx, my, button)) {
             return true;
         }
-        for (HighlightButtonSmall highlight : highlightButtons.values()) {
+        for (HighlightButton highlight : highlightButtons.values()) {
             if (highlight.visible && highlight.mouseClicked(mx, my, button)) {
                 return true;
             }
@@ -610,7 +609,7 @@ public class PatternAccessPanel extends ModulePanel {
                 updateSubscription();
                 return true;
             }
-            PacketDistributor.sendToServer(new PatternProviderActionPacket(
+            MestPackets.sendToServer(new PatternProviderActionPacket(
                     menu.containerId,
                     hit.epoch(),
                     hit.providerId(),
@@ -669,7 +668,7 @@ public class PatternAccessPanel extends ModulePanel {
             updateSubscription();
             return;
         }
-        PacketDistributor.sendToServer(new PatternProviderActionPacket(
+        MestPackets.sendToServer(new PatternProviderActionPacket(
                 menu.containerId, hit.epoch(), hit.providerId(), hit.revision(), hit.providerSlot(), action));
     }
 
@@ -939,7 +938,7 @@ public class PatternAccessPanel extends ModulePanel {
         if (!scrollerOutside() || !drawOutsideRail) {
             return;
         }
-        g.blitSprite(RAIL_SPRITE, railLeft() - 2, joinedRailY, RAIL_SPRITE_WIDTH, joinedRailH);
+        com.lhy.mest.client.GuiSprites.verticalButtonsBackground(g, railLeft() - 2, joinedRailY, RAIL_SPRITE_WIDTH, joinedRailH);
     }
 
     private void drawScrollerTrack(GuiGraphics g) {
@@ -1058,7 +1057,7 @@ public class PatternAccessPanel extends ModulePanel {
     }
 
     private void sendSubscription(int containerId, boolean subscribe) {
-        PacketDistributor.sendToServer(new PatternProviderListPacket.Request(
+        MestPackets.sendToServer(new PatternProviderListPacket.Request(
                 containerId, subscribe, (byte) showMode.ordinal()));
     }
 
@@ -1084,14 +1083,14 @@ public class PatternAccessPanel extends ModulePanel {
                 return entry;
             }
         }
-        return rows.isEmpty() ? null : provider(rows.getFirst().providerIndex());
+        return rows.isEmpty() ? null : provider(MestLists.first(rows).providerIndex());
     }
 
     private Blitter searchModeIcon() {
         return switch (searchMode) {
-            case IN -> EPPIcon.SEARCH_INPUT;
-            case OUT -> EPPIcon.SEARCH_OUTPUT;
-            case IN_OUT -> EPPIcon.SEARCH_IO;
+            case IN -> com.lhy.mest.client.MestButtonSprites.searchInput();
+            case OUT -> com.lhy.mest.client.MestButtonSprites.searchOutput();
+            case IN_OUT -> com.lhy.mest.client.MestButtonSprites.searchBoth();
         };
     }
 
@@ -1122,7 +1121,7 @@ public class PatternAccessPanel extends ModulePanel {
     }
 
     private static Blitter openUiIcon() {
-        return Blitter.texture(ResourceLocation.fromNamespaceAndPath(
+        return Blitter.texture(new ResourceLocation(
                         MESplicedterminal.MODID, "textures/guis/pattern_cache_states.png"), 256, 256)
                 .src(48, 0, 16, 16);
     }
@@ -1142,7 +1141,7 @@ public class PatternAccessPanel extends ModulePanel {
     }
 
     private void hideProviderActionButtons() {
-        for (HighlightButtonSmall button : highlightButtons.values()) {
+        for (HighlightButton button : highlightButtons.values()) {
             button.visible = false;
         }
         for (Button button : openUiButtons.values()) {
@@ -1173,9 +1172,10 @@ public class PatternAccessPanel extends ModulePanel {
                 openUi.render(g, mouseX, mouseY, partialTicks);
             }
 
-            HighlightButtonSmall highlight = highlightButtons.computeIfAbsent(
+            HighlightButton highlight = highlightButtons.computeIfAbsent(
                     provider.providerId(), id -> {
-                        var button = new HighlightButtonSmall();
+                        var button = new HighlightButton();
+                        button.setHalfSize(true);
                         button.setMessage(Component.translatable(
                                 "gui.extendedae.ex_pattern_access_terminal.tooltip.03"));
                         return button;
@@ -1220,7 +1220,7 @@ public class PatternAccessPanel extends ModulePanel {
         }
         for (Entry entry : providers) {
             if (entry.providerId() == providerId) {
-                PacketDistributor.sendToServer(new PatternProviderActionPacket(
+                MestPackets.sendToServer(new PatternProviderActionPacket(
                         menu.containerId,
                         entry.epoch(),
                         entry.providerId(),
@@ -1289,11 +1289,9 @@ public class PatternAccessPanel extends ModulePanel {
                 return;
             }
             int yOffset = isHovered() ? 1 : 0;
-            Blitter background = isHovered()
-                    ? EPPIcon.TERMINAL_BUTTON_HOVER
-                    : (isFocused() ? EPPIcon.TERMINAL_BUTTON_FOCUS : EPPIcon.TERMINAL_BUTTON);
-            background.dest(getX(), getY() + yOffset, MODE_BUTTON, MODE_BUTTON).zOffset(2).blit(graphics);
-            icon.get().dest(getX(), getY() + yOffset, MODE_BUTTON, MODE_BUTTON).zOffset(3).blit(graphics);
+            Blitter background = com.lhy.mest.client.MestButtonSprites.terminalButton(isHovered(), isFocused());
+            background.dest(getX(), getY() + yOffset, MODE_BUTTON, MODE_BUTTON).blit(graphics);
+            icon.get().dest(getX(), getY() + yOffset, MODE_BUTTON, MODE_BUTTON).blit(graphics);
         }
 
         @Override

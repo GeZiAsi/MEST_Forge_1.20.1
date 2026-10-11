@@ -10,7 +10,7 @@ import org.jetbrains.annotations.Nullable;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
-import net.neoforged.fml.ModLoader;
+import net.minecraftforge.fml.ModLoader;
 
 import appeng.menu.SlotSemantic;
 import appeng.menu.SlotSemantics;
@@ -37,7 +37,7 @@ public final class MestModuleSlots {
         if (REGISTRY.isFrozen()) {
             return;
         }
-        ModLoader.postEvent(new RegisterMestModuleSlotsEvent(REGISTRY));
+        ModLoader.get().postEvent(new RegisterMestModuleSlotsEvent(REGISTRY));
         REGISTRY.freeze();
         var built = new ArrayList<Entry>();
         for (Map.Entry<String, MestModuleSlotProvider> entry : REGISTRY.entries()) {

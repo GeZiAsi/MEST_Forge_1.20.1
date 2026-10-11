@@ -2,16 +2,18 @@
   "parent": "minecraft:recipes/root",
   "rewards": {
     "recipes": [
-      "mesplicedterminal:spliced_terminal"
+      "mesplicedterminal:network_toolkit"
     ]
   },
   "criteria": {
-    "has_wireless_universal_terminal": {
+    "has_network_tool": {
       "trigger": "minecraft:inventory_changed",
       "conditions": {
         "items": [
           {
-            "items": "ae2wtlib:wireless_universal_terminal"
+            "items": [
+              "ae2:network_tool"
+            ]
           }
         ]
       }
@@ -19,13 +21,13 @@
     "has_the_recipe": {
       "trigger": "minecraft:recipe_unlocked",
       "conditions": {
-        "recipe": "mesplicedterminal:spliced_terminal"
+        "recipe": "mesplicedterminal:network_toolkit"
       }
     }
   },
   "requirements": [
     [
-      "has_wireless_universal_terminal",
+      "has_network_tool",
       "has_the_recipe"
     ]
   ]

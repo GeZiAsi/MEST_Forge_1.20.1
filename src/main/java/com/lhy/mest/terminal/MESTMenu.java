@@ -1,5 +1,7 @@
 package com.lhy.mest.terminal;
 
+import com.lhy.mest.util.MestLists;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -13,18 +15,16 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.SimpleContainer;
 import net.minecraft.world.inventory.MenuType;
+import net.minecraft.world.inventory.TransientCraftingContainer;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Equipable;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.crafting.CraftingInput;
 import net.minecraft.world.item.crafting.CraftingRecipe;
-import net.minecraft.world.item.crafting.RecipeHolder;
 import net.minecraft.world.item.crafting.RecipeType;
-import net.minecraft.world.item.crafting.SingleRecipeInput;
-import net.minecraft.world.item.crafting.SmithingRecipeInput;
 import net.minecraft.world.item.crafting.StonecutterRecipe;
 
 import it.unimi.dsi.fastutil.ints.IntArraySet;
@@ -45,7 +45,6 @@ import appeng.menu.MenuOpener;
 import appeng.menu.SlotSemantic;
 import appeng.menu.SlotSemantics;
 import appeng.menu.guisync.GuiSync;
-import appeng.menu.implementations.MenuTypeBuilder;
 import appeng.menu.me.items.CraftingTermMenu;
 import appeng.menu.slot.AppEngSlot;
 import appeng.menu.slot.FakeSlot;
@@ -57,17 +56,16 @@ import appeng.parts.encoding.EncodingMode;
 import appeng.parts.encoding.PatternEncodingLogic;
 import appeng.util.ConfigInventory;
 
-import de.mari_023.ae2wtlib.api.gui.AE2wtlibSlotSemantics;
-import de.mari_023.ae2wtlib.api.terminal.ItemWUT;
-import de.mari_023.ae2wtlib.api.terminal.WTMenuHost;
-import de.mari_023.ae2wtlib.wct.ArmorSlot;
+import de.mari_023.ae2wtlib.AE2wtlibSlotSemantics;
+import de.mari_023.ae2wtlib.terminal.ArmorSlot;
+import de.mari_023.ae2wtlib.terminal.WTMenuHost;
+import de.mari_023.ae2wtlib.wut.ItemWUT;
 import de.mari_023.ae2wtlib.wct.magnet_card.MagnetHandler;
 import de.mari_023.ae2wtlib.wct.magnet_card.MagnetMode;
 
 import com.lhy.mest.MESplicedterminal;
 import com.lhy.mest.compat.MestCraftingPatternAutoUpload;
 import com.lhy.mest.compat.plus.PlusEncodingUpload;
-import com.lhy.mest.compat.UselessPatternBridge;
 import com.lhy.mest.network.PatternAccessSession;
 import com.lhy.mest.network.PatternCacheActionPacket;
 import com.lhy.mest.module.MestModuleSlots;
@@ -78,9 +76,8 @@ import com.lhy.mest.module.MestModuleSlots;
  * result slot. The dockable module layout placing these into floating panels is a client-side concern.
  */
 public class MESTMenu extends CraftingTermMenu {
-    public static final ResourceLocation ID = ResourceLocation.fromNamespaceAndPath(MESplicedterminal.MODID, "spliced_terminal");
-    public static final MenuType<MESTMenu> TYPE = MenuTypeBuilder.create(MESTMenu::new, MESTMenuHost.class)
-            .buildUnregistered(ID);
+    public static final ResourceLocation ID = new ResourceLocation(MESplicedterminal.MODID, "spliced_terminal");
+    public static final MenuType<MESTMenu> TYPE = MestMenuTypes.create(ID, MESTMenu::new, MESTMenuHost.class);
 
     private static final int CRAFTING_GRID_WIDTH = 3;
     private static final int CRAFTING_GRID_HEIGHT = 3;
@@ -118,9 +115,9 @@ public class MESTMenu extends CraftingTermMenu {
     private RestrictedInputSlot encodedPatternSlot;
     private final ConfigInventory encodedInputsInv;
     private final ConfigInventory encodedOutputsInv;
-    private final List<RecipeHolder<StonecutterRecipe>> stonecuttingRecipes = new ArrayList<>();
+    private final List<StonecutterRecipe> stonecuttingRecipes = new ArrayList<>();
 
-    private RecipeHolder<CraftingRecipe> currentPatternCraftingRecipe;
+    private CraftingRecipe currentPatternCraftingRecipe;
     private EncodingMode currentPatternMode;
 
     // Re-entrancy guard: updatePatternCraftingOutput() writes into patternCraftOutputSlot and reads
@@ -155,6 +152,8 @@ public class MESTMenu extends CraftingTermMenu {
     public boolean toolkitOpen;
 
     public final IntSet patternSlotsSupportingFluidSubstitution = new IntArraySet();
+    private boolean lastSyncedSubstitute;
+    private boolean lastSyncedSubstituteFluids = true;
 
     public MESTMenu(int id, Inventory ip, MESTMenuHost host) {
         super(TYPE, id, ip, host, true);
@@ -208,8 +207,17 @@ public class MESTMenu extends CraftingTermMenu {
     }
 
     @Override
+    public IGridNode getNetworkNode() {
+        return host.getActionableNode();
+    }
+
     public IGridNode getGridNode() {
         return host.getActionableNode();
+    }
+
+    /** AE2 15 has no link-status object; a powered, reachable grid is what "connected" meant. */
+    public boolean isLinked() {
+        return isPowered();
     }
 
     public PatternAccessSession getPatternAccessSession() {
@@ -227,11 +235,11 @@ public class MESTMenu extends CraftingTermMenu {
                 && player.containerMenu == this
                 && isValidMenu()
                 && stillValid(player)
-                && host.isValid();
+                && host.stillValid();
     }
 
     public boolean canUsePatternAccess(ServerPlayer player) {
-        if (!canUseTerminal(player) || !getLinkStatus().connected()) {
+        if (!canUseTerminal(player) || !isLinked()) {
             return false;
         }
         var node = getGridNode();
@@ -363,7 +371,7 @@ public class MESTMenu extends CraftingTermMenu {
         addSlot(new ArmorSlot(ip, ArmorSlot.Armor.CHEST), AE2wtlibSlotSemantics.CHESTPLATE);
         addSlot(new ArmorSlot(ip, ArmorSlot.Armor.LEGS), AE2wtlibSlotSemantics.LEGGINGS);
         addSlot(new ArmorSlot(ip, ArmorSlot.Armor.FEET), AE2wtlibSlotSemantics.BOOTS);
-        if (Integer.valueOf(40).equals(host.getPlayerInventorySlot())) {
+        if (Integer.valueOf(Inventory.SLOT_OFFHAND).equals(host.getSlot())) {
             addSlot(new ArmorSlot.DisabledOffhandSlot(ip), AE2wtlibSlotSemantics.OFFHAND);
         } else {
             addSlot(new ArmorSlot(ip, ArmorSlot.Armor.OFFHAND), AE2wtlibSlotSemantics.OFFHAND);
@@ -446,11 +454,11 @@ public class MESTMenu extends CraftingTermMenu {
 
             if (!encodeOutput.isEmpty()
                     && !PatternDetailsHelper.isEncodedPattern(encodeOutput)
-                    && !AEItems.BLANK_PATTERN.is(encodeOutput)) {
+                    && !AEItems.BLANK_PATTERN.isSameAs(encodeOutput)) {
                 return;
             } else if (encodeOutput.isEmpty()) {
                 var blankPattern = this.blankPatternSlot.getItem();
-                if (!AEItems.BLANK_PATTERN.is(blankPattern)) {
+                if (!AEItems.BLANK_PATTERN.isSameAs(blankPattern)) {
                     return;
                 }
 
@@ -639,11 +647,11 @@ public class MESTMenu extends CraftingTermMenu {
     }
 
     private void tryFillBlankPattern() {
-        if (blankPatternFilled || blankPatternSlot == null || !getLinkStatus().connected()) {
+        if (blankPatternFilled || blankPatternSlot == null || !isLinked()) {
             return;
         }
         ItemStack current = blankPatternSlot.getItem();
-        if (!current.isEmpty() && !AEItems.BLANK_PATTERN.is(current)) {
+        if (!current.isEmpty() && !AEItems.BLANK_PATTERN.isSameAs(current)) {
             return;
         }
         int space = Math.min(
@@ -782,7 +790,7 @@ public class MESTMenu extends CraftingTermMenu {
         return encodedPatternSlot;
     }
 
-    public List<RecipeHolder<StonecutterRecipe>> getStonecuttingRecipes() {
+    public List<StonecutterRecipe> getStonecuttingRecipes() {
         return stonecuttingRecipes;
     }
 
@@ -800,7 +808,7 @@ public class MESTMenu extends CraftingTermMenu {
 
         updateStonecuttingRecipes();
         ResourceLocation validatedId = stonecuttingRecipes.stream()
-                .anyMatch(recipe -> recipe.id().equals(id)) ? id : null;
+                .anyMatch(recipe -> recipe.getId().equals(id)) ? id : null;
         patternEncodingLogic.setStonecuttingRecipeId(validatedId);
         stonecuttingRecipeId = validatedId;
         updatePatternCraftingOutput();
@@ -816,7 +824,10 @@ public class MESTMenu extends CraftingTermMenu {
             slot.setHideAmount(true);
             this.addSlot(this.patternCraftingSlots[i] = slot, MestSlotSemantics.PATTERN_CRAFTING_GRID);
         }
-        this.addSlot(this.patternCraftOutputSlot = new PatternTermSlot(), MestSlotSemantics.PATTERN_CRAFTING_RESULT);
+        this.addSlot(this.patternCraftOutputSlot = new PatternTermSlot(getPlayerInventory().player,
+                getActionSource(), powerSource, host.getInventory(), encodedInputs, this),
+                MestSlotSemantics.PATTERN_CRAFTING_RESULT);
+        this.patternCraftOutputSlot.setIcon(null);
 
         for (int i = 0; i < processingInputSlots.length; i++) {
             this.addSlot(this.processingInputSlots[i] = new FakeSlot(encodedInputs, i),
@@ -889,16 +900,17 @@ public class MESTMenu extends CraftingTermMenu {
         InternalInventory toolkit = host.getToolkitInventory();
         for (int index = 0; index < toolkit.size(); index++) {
             ItemStack stack = toolkit.getStackInSlot(index);
-            if (!(stack.getItem() instanceof NetworkToolItem tool)) {
+            if (!(stack.getItem() instanceof NetworkToolItem)) {
                 continue;
             }
-            NetworkToolMenuHost<?> toolHost = tool.getMenuHost(getPlayer(), new ToolkitItemLocator(index), null);
+            NetworkToolMenuHost toolHost = new ToolkitItemLocator(index)
+                    .locate(getPlayer(), NetworkToolMenuHost.class);
             if (toolHost == null) {
                 continue;
             }
             InternalInventory upgrades = toolHost.getInventory();
             for (int slot = 0; slot < upgrades.size(); slot++) {
-                addSlot(new ToolkitToolboxSlot(upgrades, slot, toolHost), SlotSemantics.TOOLBOX);
+                addSlot(new ToolkitToolboxSlot(upgrades, slot, toolHost, getPlayer(), index), SlotSemantics.TOOLBOX);
             }
             return;
         }
@@ -909,38 +921,48 @@ public class MESTMenu extends CraftingTermMenu {
      * menu instead, so they freeze rather than touch whatever stack now sits at that index.
      */
     private static final class ToolkitToolboxSlot extends RestrictedInputSlot {
-        private final NetworkToolMenuHost<?> toolHost;
+        private final NetworkToolMenuHost toolHost;
+        private final Player owner;
+        private final int toolkitIndex;
 
-        ToolkitToolboxSlot(InternalInventory upgrades, int slot, NetworkToolMenuHost<?> toolHost) {
+        ToolkitToolboxSlot(InternalInventory upgrades, int slot, NetworkToolMenuHost toolHost, Player owner,
+                int toolkitIndex) {
             super(RestrictedInputSlot.PlacableItemType.UPGRADES, upgrades, slot);
             this.toolHost = toolHost;
+            this.owner = owner;
+            this.toolkitIndex = toolkitIndex;
+        }
+
+        /** The tool this host was built for still sits in its toolkit cell. */
+        private boolean toolPresent() {
+            return ToolkitBarState.stackAt(owner, toolkitIndex) == toolHost.getItemStack();
         }
 
         @Override
         public ItemStack getItem() {
-            return toolHost.isValid() ? super.getItem() : ItemStack.EMPTY;
+            return toolPresent() ? super.getItem() : ItemStack.EMPTY;
         }
 
         @Override
         public boolean mayPlace(ItemStack stack) {
-            return toolHost.isValid() && super.mayPlace(stack);
+            return toolPresent() && super.mayPlace(stack);
         }
 
         @Override
         public boolean mayPickup(Player player) {
-            return toolHost.isValid() && super.mayPickup(player);
+            return toolPresent() && super.mayPickup(player);
         }
 
         @Override
         public void set(ItemStack stack) {
-            if (toolHost.isValid()) {
+            if (toolPresent()) {
                 super.set(stack);
             }
         }
 
         @Override
         public ItemStack remove(int amount) {
-            return toolHost.isValid() ? super.remove(amount) : ItemStack.EMPTY;
+            return toolPresent() ? super.remove(amount) : ItemStack.EMPTY;
         }
     }
 
@@ -961,7 +983,7 @@ public class MESTMenu extends CraftingTermMenu {
             return ItemStack.EMPTY;
         }
         if (updatingPatternCraftingOutput) {
-            // Already recomputing — setResultItem()/getKey() below re-enters onSlotChange().
+            // Already recomputing — setDisplayedCraftingOutput()/getKey() below re-enters onSlotChange().
             return patternCraftOutputSlot.getItem();
         }
         updatingPatternCraftingOutput = true;
@@ -987,10 +1009,13 @@ public class MESTMenu extends CraftingTermMenu {
             }
         }
 
-        var input = CraftingInput.of(CRAFTING_GRID_WIDTH, CRAFTING_GRID_HEIGHT, items);
+        var input = new TransientCraftingContainer(new MestNullMenu(), CRAFTING_GRID_WIDTH, CRAFTING_GRID_HEIGHT);
+        for (int i = 0; i < items.size(); i++) {
+            input.setItem(i, items.get(i));
+        }
 
         if (this.currentPatternCraftingRecipe == null
-                || !this.currentPatternCraftingRecipe.value().matches(input, level)) {
+                || !this.currentPatternCraftingRecipe.matches(input, level)) {
             if (invalidIngredients) {
                 this.currentPatternCraftingRecipe = null;
             } else {
@@ -1006,10 +1031,10 @@ public class MESTMenu extends CraftingTermMenu {
         if (this.currentPatternCraftingRecipe == null) {
             result = ItemStack.EMPTY;
         } else {
-            result = this.currentPatternCraftingRecipe.value().assemble(input, level.registryAccess());
+            result = this.currentPatternCraftingRecipe.assemble(input, level.registryAccess());
         }
 
-        this.patternCraftOutputSlot.setResultItem(result);
+        this.patternCraftOutputSlot.setDisplayedCraftingOutput(result);
         return result;
     }
 
@@ -1025,7 +1050,7 @@ public class MESTMenu extends CraftingTermMenu {
             var decodedPattern = PatternDetailsHelper.decodePattern(encodedPattern,
                     this.getPlayerInventory().player.level());
             if (decodedPattern instanceof AECraftingPattern craftingPattern) {
-                for (int i = 0; i < craftingPattern.getSparseInputs().size(); i++) {
+                for (int i = 0; i < craftingPattern.getSparseInputs().length; i++) {
                     if (craftingPattern.getValidFluid(i) != null) {
                         patternSlotsSupportingFluidSubstitution.add(i);
                     }
@@ -1091,8 +1116,7 @@ public class MESTMenu extends CraftingTermMenu {
             return null;
         }
 
-        ItemStack encoded = PatternDetailsHelper.encodeProcessingPattern(Arrays.asList(inputs), Arrays.asList(outputs));
-        return UselessPatternBridge.convert(this, encoded);
+        return PatternDetailsHelper.encodeProcessingPattern(inputs, outputs);
     }
 
     @Nullable
@@ -1103,7 +1127,7 @@ public class MESTMenu extends CraftingTermMenu {
             return null;
         }
 
-        var input = new SmithingRecipeInput(template.toStack(), base.toStack(), addition.toStack());
+        var input = new SimpleContainer(template.toStack(), base.toStack(), addition.toStack());
         var level = getPlayer().level();
         var recipe = level.getRecipeManager()
                 .getRecipeFor(RecipeType.SMITHING, input, level)
@@ -1112,7 +1136,7 @@ public class MESTMenu extends CraftingTermMenu {
             return null;
         }
 
-        var output = AEItemKey.of(recipe.value().assemble(input, level.registryAccess()));
+        var output = AEItemKey.of(recipe.assemble(input, level.registryAccess()));
         return PatternDetailsHelper.encodeSmithingTablePattern(recipe, template, base, addition, output,
                 patternEncodingLogic.isSubstitution());
     }
@@ -1126,16 +1150,17 @@ public class MESTMenu extends CraftingTermMenu {
             return null;
         }
 
-        var recipeInput = new SingleRecipeInput(input.toStack());
+        var recipeInput = new SimpleContainer(input.toStack());
         var level = getPlayer().level();
         var recipe = level.getRecipeManager()
                 .getRecipeFor(RecipeType.STONECUTTING, recipeInput, level, stonecuttingRecipeId)
+                .map(com.mojang.datafixers.util.Pair::getSecond)
                 .orElse(null);
         if (recipe == null) {
             return null;
         }
 
-        var output = AEItemKey.of(recipe.value().getResultItem(level.registryAccess()));
+        var output = AEItemKey.of(recipe.getResultItem(level.registryAccess()));
         return PatternDetailsHelper.encodeStonecuttingPattern(recipe, input, output,
                 patternEncodingLogic.isSubstitution());
     }
@@ -1166,13 +1191,13 @@ public class MESTMenu extends CraftingTermMenu {
         }
         if (encodedInputsInv.getKey(0) instanceof AEItemKey itemKey) {
             var level = getPlayer().level();
-            var recipeInput = new SingleRecipeInput(itemKey.toStack());
+            var recipeInput = new SimpleContainer(itemKey.toStack());
             stonecuttingRecipes.addAll(
                     level.getRecipeManager().getRecipesFor(RecipeType.STONECUTTING, recipeInput, level));
         }
 
         if (stonecuttingRecipeId != null
-                && stonecuttingRecipes.stream().noneMatch(r -> r.id().equals(stonecuttingRecipeId))) {
+                && stonecuttingRecipes.stream().noneMatch(r -> r.getId().equals(stonecuttingRecipeId))) {
             if (isServerSide()) {
                 patternEncodingLogic.setStonecuttingRecipeId(null);
             }
@@ -1266,18 +1291,21 @@ public class MESTMenu extends CraftingTermMenu {
     }
 
     @Override
-    public void onServerDataSync(it.unimi.dsi.fastutil.shorts.ShortSet updatedFields) {
-        super.onServerDataSync(updatedFields);
+    public void onServerDataSync() {
+        super.onServerDataSync();
 
         // Client-side: only refresh UI-derived state. Never write the synced mode back into
         // patternEncodingLogic here - the server owns the logic's item data, and writing to it from the
         // client can drift from (and later fight with) the authoritative server state.
-        if (updatedFields.contains((short) 93) && currentPatternMode != patternEncodingMode) {
+        // AE2 15 does not report which fields changed, so compare against what was seen last.
+        if (currentPatternMode != patternEncodingMode) {
             currentPatternMode = patternEncodingMode;
             updatePatternCraftingOutput();
             updateStonecuttingRecipes();
         }
-        if (updatedFields.contains((short) 91) || updatedFields.contains((short) 92)) {
+        if (lastSyncedSubstitute != patternSubstitute || lastSyncedSubstituteFluids != patternSubstituteFluids) {
+            lastSyncedSubstitute = patternSubstitute;
+            lastSyncedSubstituteFluids = patternSubstituteFluids;
             checkFluidSubstitutionSupport();
         }
         applyPatternEncodingSlotActivation();
@@ -1297,17 +1325,15 @@ public class MESTMenu extends CraftingTermMenu {
     }
 
     @Override
-    protected int transferStackToMenu(ItemStack input) {
-        int initialCount = input.getCount();
-
+    protected ItemStack transferStackToMenu(ItemStack input) {
         if (prefersToolkitQuickMove()) {
             input = insertIntoToolkit(input, true);
             if (input.isEmpty()) {
-                return initialCount;
+                return ItemStack.EMPTY;
             }
             input = insertIntoToolkit(input, false);
             if (input.isEmpty()) {
-                return initialCount;
+                return ItemStack.EMPTY;
             }
         }
 
@@ -1316,7 +1342,7 @@ public class MESTMenu extends CraftingTermMenu {
                 if (trashSlot.mayPlace(input)) {
                     input = trashSlot.safeInsert(input);
                     if (input.isEmpty()) {
-                        return initialCount;
+                        return ItemStack.EMPTY;
                     }
                 }
             }
@@ -1325,14 +1351,14 @@ public class MESTMenu extends CraftingTermMenu {
         if (blankPatternSlot.mayPlace(input)) {
             input = blankPatternSlot.safeInsert(input);
             if (input.isEmpty()) {
-                return initialCount;
+                return ItemStack.EMPTY;
             }
         }
 
         if (encodedPatternSlot.mayPlace(input)) {
             input = encodedPatternSlot.safeInsert(input);
             if (input.isEmpty()) {
-                return initialCount;
+                return ItemStack.EMPTY;
             }
         }
 
@@ -1341,14 +1367,13 @@ public class MESTMenu extends CraftingTermMenu {
                 if (cacheSlot.mayPlace(input)) {
                     input = cacheSlot.safeInsert(input);
                     if (input.isEmpty()) {
-                        return initialCount;
+                        return ItemStack.EMPTY;
                     }
                 }
             }
         }
 
-        int transferred = initialCount - input.getCount();
-        return transferred + super.transferStackToMenu(input);
+        return super.transferStackToMenu(input);
     }
 
     @Override
@@ -1481,15 +1506,15 @@ public class MESTMenu extends CraftingTermMenu {
             if (!(details instanceof AEProcessingPattern process)) {
                 continue;
             }
-            var input = process.getSparseInputs().toArray(GenericStack[]::new);
-            var output = process.getSparseOutputs().toArray(GenericStack[]::new);
+            var input = process.getSparseInputs();
+            var output = process.getSparseOutputs();
             if (!PatternEncodingAmounts.canScale(input, scale, divide)
                     || !PatternEncodingAmounts.canScale(output, scale, divide)) {
                 continue;
             }
             slot.set(PatternDetailsHelper.encodeProcessingPattern(
-                    Arrays.asList(PatternEncodingAmounts.scaleStacks(input, scale, divide)),
-                    Arrays.asList(PatternEncodingAmounts.scaleStacks(output, scale, divide))));
+                    PatternEncodingAmounts.scaleStacks(input, scale, divide),
+                    PatternEncodingAmounts.scaleStacks(output, scale, divide)));
         }
         broadcastChanges();
     }
@@ -1501,13 +1526,15 @@ public class MESTMenu extends CraftingTermMenu {
             if (!(details instanceof AEProcessingPattern process)) {
                 continue;
             }
-            long gcd = PatternEncodingAmounts.sharedGcd(process.getSparseInputs(), process.getSparseOutputs());
+            var inputs = Arrays.asList(process.getSparseInputs());
+            var outputs = Arrays.asList(process.getSparseOutputs());
+            long gcd = PatternEncodingAmounts.sharedGcd(inputs, outputs);
             if (gcd <= 1L) {
                 continue;
             }
             slot.set(PatternDetailsHelper.encodeProcessingPattern(
-                    PatternEncodingAmounts.divideStacks(process.getSparseInputs(), gcd),
-                    PatternEncodingAmounts.divideStacks(process.getSparseOutputs(), gcd)));
+                    PatternEncodingAmounts.divideStacks(inputs, gcd).toArray(GenericStack[]::new),
+                    PatternEncodingAmounts.divideStacks(outputs, gcd).toArray(GenericStack[]::new)));
         }
         broadcastChanges();
     }
@@ -1521,8 +1548,7 @@ public class MESTMenu extends CraftingTermMenu {
             }
             slot.set(PatternDetailsHelper.encodeProcessingPattern(
                     process.getSparseInputs(),
-                    Arrays.asList(PatternEncodingAmounts.rotateOutputs(
-                            process.getSparseOutputs().toArray(GenericStack[]::new)))));
+                    PatternEncodingAmounts.rotateOutputs(process.getSparseOutputs())));
         }
         broadcastChanges();
     }
@@ -1542,9 +1568,9 @@ public class MESTMenu extends CraftingTermMenu {
                 slot.set(PatternDetailsHelper.encodeCraftingPattern(
                         recipe,
                         itemize(craft.getSparseInputs()),
-                        itemize(craft.getOutputs().isEmpty() ? null : craft.getOutputs().getFirst()),
-                        itemSubstitution ? value : craft.canSubstitute(),
-                        itemSubstitution ? craft.canSubstituteFluids() : value));
+                        itemize(craft.getOutputs().length == 0 ? null : craft.getOutputs()[0]),
+                        itemSubstitution ? value : craft.canSubstitute,
+                        itemSubstitution ? craft.canSubstituteFluids : value));
             } catch (RuntimeException ignored) {
             }
         }
@@ -1552,20 +1578,24 @@ public class MESTMenu extends CraftingTermMenu {
     }
 
     @Nullable
-    private RecipeHolder<CraftingRecipe> craftingRecipeFor(AECraftingPattern craft) {
+    private CraftingRecipe craftingRecipeFor(AECraftingPattern craft) {
         var items = itemize(craft.getSparseInputs());
         if (items.length != 9) {
             return null;
         }
+        var container = new TransientCraftingContainer(new MestNullMenu(), 3, 3);
+        for (int i = 0; i < items.length; i++) {
+            container.setItem(i, items[i]);
+        }
         return getPlayer().level().getRecipeManager()
-                .getRecipeFor(RecipeType.CRAFTING, CraftingInput.of(3, 3, Arrays.asList(items)), getPlayer().level())
+                .getRecipeFor(RecipeType.CRAFTING, container, getPlayer().level())
                 .orElse(null);
     }
 
-    private static ItemStack[] itemize(List<GenericStack> stacks) {
-        var items = new ItemStack[stacks.size()];
-        for (int i = 0; i < stacks.size(); i++) {
-            items[i] = itemize(stacks.get(i));
+    private static ItemStack[] itemize(GenericStack[] stacks) {
+        var items = new ItemStack[stacks.length];
+        for (int i = 0; i < stacks.length; i++) {
+            items[i] = itemize(stacks[i]);
         }
         return items;
     }

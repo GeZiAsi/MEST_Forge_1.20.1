@@ -1,30 +1,18 @@
 package com.lhy.mest.network;
 
-import io.netty.buffer.ByteBuf;
+import net.minecraft.network.FriendlyByteBuf;
 
-import net.minecraft.network.codec.ByteBufCodecs;
-import net.minecraft.network.codec.StreamCodec;
-import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
-import net.neoforged.neoforge.network.handling.IPayloadContext;
 
-import com.lhy.mest.MESplicedterminal;
 import com.lhy.mest.terminal.MESTMenu;
 
 /** Client action against every encoded pattern in the cache panel. */
-public record PatternCacheActionPacket(Action action, boolean value) implements CustomPacketPayload {
-    public static final Type<PatternCacheActionPacket> TYPE =
-            new Type<>(ResourceLocation.fromNamespaceAndPath(MESplicedterminal.MODID, "pattern_cache_action"));
+public record PatternCacheActionPacket(Action action, boolean value) {
 
     private static final Action[] ACTIONS = Action.values();
 
     /** One packet rewrites the whole cache, so the quota is far tighter than for single-slot actions. */
     private static final PlayerTickBudgets BUDGETS = new PlayerTickBudgets(4);
-
-    public static final StreamCodec<ByteBuf, PatternCacheActionPacket> STREAM_CODEC = StreamCodec.ofMember(
-            PatternCacheActionPacket::write,
-            PatternCacheActionPacket::read);
 
     public enum Action {
         SWAP,
@@ -45,15 +33,10 @@ public record PatternCacheActionPacket(Action action, boolean value) implements 
         FLUID_SUBSTITUTION
     }
 
-    @Override
-    public Type<? extends CustomPacketPayload> type() {
-        return TYPE;
-    }
-
-    private static PatternCacheActionPacket read(ByteBuf buf) {
+    public static PatternCacheActionPacket read(FriendlyByteBuf buf) {
         try {
-            int actionOrdinal = ByteBufCodecs.VAR_INT.decode(buf);
-            boolean value = ByteBufCodecs.BOOL.decode(buf);
+            int actionOrdinal = buf.readVarInt();
+            boolean value = buf.readBoolean();
             if (actionOrdinal < 0 || actionOrdinal >= ACTIONS.length || buf.isReadable()) {
                 throw new IllegalArgumentException("Malformed pattern cache action");
             }
@@ -64,12 +47,12 @@ public record PatternCacheActionPacket(Action action, boolean value) implements 
         }
     }
 
-    private void write(ByteBuf buf) {
+    public void write(FriendlyByteBuf buf) {
         if (!isWellFormed()) {
             throw new IllegalStateException("Cannot encode a malformed pattern cache action");
         }
-        ByteBufCodecs.VAR_INT.encode(buf, action.ordinal());
-        ByteBufCodecs.BOOL.encode(buf, value);
+        buf.writeVarInt(action.ordinal());
+        buf.writeBoolean(value);
     }
 
     boolean isWellFormed() {
@@ -80,7 +63,7 @@ public record PatternCacheActionPacket(Action action, boolean value) implements 
         return new PatternCacheActionPacket(null, false);
     }
 
-    private static void discardRemaining(ByteBuf buf) {
+    private static void discardRemaining(FriendlyByteBuf buf) {
         try {
             buf.skipBytes(buf.readableBytes());
         } catch (RuntimeException ignored) {
@@ -88,7 +71,7 @@ public record PatternCacheActionPacket(Action action, boolean value) implements 
         }
     }
 
-    public static void handle(PatternCacheActionPacket packet, IPayloadContext context) {
+    public static void handle(PatternCacheActionPacket packet, PacketContext context) {
         if (!packet.isWellFormed()) {
             return;
         }

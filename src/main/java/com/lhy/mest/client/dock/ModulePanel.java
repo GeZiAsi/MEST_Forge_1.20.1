@@ -12,13 +12,14 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.world.inventory.Slot;
 
 import appeng.client.gui.Icon;
+
+import com.lhy.mest.client.Ae2Icons;
 import appeng.client.gui.style.BackgroundGenerator;
 import appeng.client.gui.style.Blitter;
 import appeng.core.AppEng;
 
-import net.neoforged.fml.ModList;
+import net.minecraftforge.fml.ModList;
 
-import com.glodblock.github.extendedae.client.button.EPPIcon;
 
 import com.lhy.mest.client.MestGuiIcons;
 import com.lhy.mest.client.dock.model.DockAxis;
@@ -193,7 +194,7 @@ public abstract class ModulePanel {
 
     /** Icon for the terminal's module buttons and the layout editor palette. */
     public Icon icon() {
-        return Icon.COG;
+        return Ae2Icons.COG;
     }
 
     /** Draws the module icon into a {@code w}x{@code h} box; override for a custom texture. */
@@ -201,7 +202,7 @@ public abstract class ModulePanel {
         Icon icon = icon();
         var blitter = icon.getBlitter()
                 .dest(x + (w - icon.width) / 2, y + (h - icon.height) / 2)
-                .zOffset(3);
+;
         if (opacity < 1.0F) {
             blitter.opacity(opacity);
         }
@@ -693,17 +694,8 @@ public abstract class ModulePanel {
 
     private void drawChromeBackground(GuiGraphics g, int px, int py, boolean hovered) {
         int yOffset = hovered ? 1 : 0;
-        if (ModList.get().isLoaded("extendedae")) {
-            Blitter background = hovered
-                    ? EPPIcon.TERMINAL_BUTTON_HOVER
-                    : EPPIcon.TERMINAL_BUTTON;
-            background.dest(px, py + yOffset, PIN_SIZE, PIN_SIZE).zOffset(2).blit(g);
-        } else {
-            // ExtendedAE supplies a tasteful button sprite; without it, fall back to a flat dark
-            // fill that matches the title bar so the glyph still reads as a button.
-            int bg = hovered ? 0xFF4A4A4A : 0xFF2E2E2E;
-            g.fill(px, py + yOffset, px + PIN_SIZE, py + yOffset + PIN_SIZE, bg);
-        }
+        Blitter background = com.lhy.mest.client.MestButtonSprites.terminalButton(hovered, false);
+        background.dest(px, py + yOffset, PIN_SIZE, PIN_SIZE).blit(g);
     }
 
     /** Unassigned: a faded module-1 icon. Assigned: the combined module's own 1/2/3 icon. */
@@ -715,7 +707,7 @@ public abstract class ModulePanel {
     }
 
     private static void blitAeIcon(GuiGraphics g, Icon icon, int x, int y) {
-        icon.getBlitter().dest(x, y, PIN_SIZE, PIN_SIZE).zOffset(3).blit(g);
+        icon.getBlitter().dest(x, y, PIN_SIZE, PIN_SIZE).blit(g);
     }
 
     private enum ChromeGlyph {
@@ -814,7 +806,7 @@ public abstract class ModulePanel {
     /** Draw a text button with the same sprites and colors as AE2Button. */
     public static void drawButton(GuiGraphics g, Font font, Component label,
             int x, int y, int width, int height, boolean highlighted) {
-        g.blitSprite(AppEng.makeId(highlighted ? "button_highlighted" : "button"), x, y, width, height);
+        com.lhy.mest.client.GuiSprites.button(g, x, y, width, height, highlighted);
         String text = font.plainSubstrByWidth(label.getString(), Math.max(0, width - 6));
         int color = highlighted ? 0xFF517497 : 0xFFF2F2F2;
         g.drawString(font, text, x + (width - font.width(text)) / 2, y + (height - 8) / 2, color, false);

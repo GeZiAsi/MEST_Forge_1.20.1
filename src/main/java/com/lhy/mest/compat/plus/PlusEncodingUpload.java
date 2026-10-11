@@ -1,132 +1,39 @@
 package com.lhy.mest.compat.plus;
 
-import java.util.ArrayList;
-import java.util.List;
-
-import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.crafting.Recipe;
-import net.minecraft.world.item.crafting.RecipeHolder;
-import net.neoforged.fml.ModList;
 
-import appeng.api.crafting.PatternDetailsHelper;
 import appeng.api.networking.IGrid;
-import appeng.helpers.patternprovider.PatternContainer;
-import appeng.integration.modules.itemlists.EncodingHelper;
 import appeng.menu.slot.RestrictedInputSlot;
 import appeng.parts.encoding.EncodingMode;
 
-import com.extendedae_plus.util.uploadPattern.CtrlQPendingUploadUtil;
-import com.extendedae_plus.util.uploadPattern.ExtendedAEPatternUploadUtil;
-import com.lhy.mest.network.ProviderPickerListPacket;
-
 /**
- * Hands encoded patterns to EAEP's pending-upload + provider-picker path.
- * Plus' encoding-menu packets require {@code PatternEncodingTermMenu}; the Ctrl+Q pending
- * path is the public API that still works with {@code MESTMenu}.
+ * ExtendedAE Plus pending-upload bridge. The 1.21.1 build drove EAEP's provider picker; the GTL
+ * (Forge 1.20.1) stack does not ship EAEP, so every entry point reports "not available" and the
+ * built-in pattern-access upload path is used instead.
  */
 public final class PlusEncodingUpload {
     private PlusEncodingUpload() {
     }
 
     public static boolean available() {
-        return ModList.get().isLoaded("extendedae_plus");
+        return false;
     }
 
-    /** Client: same recipe-type search key Plus JEI mixins write before the provider picker opens. */
     public static void captureRecipeSearchKey(Object rawRecipe) {
-        if (!available() || rawRecipe == null) {
-            return;
-        }
-        Recipe<?> recipe = null;
-        if (rawRecipe instanceof RecipeHolder<?> holder) {
-            recipe = holder.value();
-        } else if (rawRecipe instanceof Recipe<?> value) {
-            recipe = value;
-        }
-        if (recipe != null && EncodingHelper.isSupportedCraftingRecipe(recipe)) {
-            ExtendedAEPatternUploadUtil.presetCraftingProviderSearchKey();
-            return;
-        }
-        String name = null;
-        if (recipe != null) {
-            name = ExtendedAEPatternUploadUtil.mapRecipeTypeToSearchKey(recipe);
-            if (name == null || name.isBlank()) {
-                name = ExtendedAEPatternUploadUtil.deriveSearchKeyFromUnknownRecipe(recipe);
-            }
-        } else {
-            name = ExtendedAEPatternUploadUtil.deriveSearchKeyFromUnknownRecipe(rawRecipe);
-        }
-        if (name != null && !name.isBlank()) {
-            ExtendedAEPatternUploadUtil.setLastProcessingName(name);
-        }
     }
 
     public static void presetSearchKeyForMode(EncodingMode mode) {
-        if (!available() || mode == null) {
-            return;
-        }
-        switch (mode) {
-            case CRAFTING -> ExtendedAEPatternUploadUtil.presetCraftingProviderSearchKey();
-            case SMITHING_TABLE -> ExtendedAEPatternUploadUtil.setLastProcessingName(
-                    ExtendedAEPatternUploadUtil.resolveRecipeTypeSearchKey(
-                            ResourceLocation.parse("minecraft:smithing"), null));
-            case STONECUTTING -> ExtendedAEPatternUploadUtil.setLastProcessingName(
-                    ExtendedAEPatternUploadUtil.resolveRecipeTypeSearchKey(
-                            ResourceLocation.parse("minecraft:stonecutting"), null));
-            default -> {
-            }
-        }
     }
 
     public static boolean uploadEncodedToMatrix(ServerPlayer player, RestrictedInputSlot encodedSlot, IGrid grid) {
-        if (!available() || encodedSlot == null || grid == null) {
-            return false;
-        }
-        ItemStack stack = encodedSlot.getItem();
-        if (!ExtendedAEPatternUploadUtil.uploadPatternToMatrix(player, stack, grid)) {
-            return false;
-        }
-        encodedSlot.set(ItemStack.EMPTY);
-        encodedSlot.setChanged();
-        return true;
+        return false;
     }
 
     public static boolean beginAndOpenPicker(ServerPlayer player, RestrictedInputSlot encodedSlot) {
-        ItemStack stack = encodedSlot == null ? ItemStack.EMPTY : encodedSlot.getItem();
-        boolean hasPattern = encodedSlot != null
-                && !stack.isEmpty()
-                && PatternDetailsHelper.isEncodedPattern(stack);
-        List<PatternContainer> containers = CtrlQPendingUploadUtil.listAvailableProvidersFromPlayerNetwork(player);
-        if (hasPattern) {
-            CtrlQPendingUploadUtil.beginPendingCtrlQUpload(player, stack.copy());
-            encodedSlot.remove(1);
-            encodedSlot.setChanged();
-        }
-
-        List<Long> ids = new ArrayList<>();
-        List<Component> names = new ArrayList<>();
-        List<Integer> slots = new ArrayList<>();
-        for (int i = 0; i < containers.size(); i++) {
-            PatternContainer container = containers.get(i);
-            int empty = ExtendedAEPatternUploadUtil.getAvailableSlots(container);
-            if (empty <= 0) {
-                continue;
-            }
-            ids.add(-1L - i);
-            names.add(ExtendedAEPatternUploadUtil.getProviderDisplayNameComponent(container));
-            slots.add(empty);
-        }
-        if (ids.isEmpty() && hasPattern) {
-            CtrlQPendingUploadUtil.returnPendingCtrlQPatternToInventory(player);
-        }
-        player.connection.send(new ProviderPickerListPacket(ids, names, slots, encodedSlot != null));
-        return true;
+        return false;
     }
 
     public static boolean sendPickerList(ServerPlayer player) {
-        return beginAndOpenPicker(player, null);
+        return false;
     }
 }

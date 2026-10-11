@@ -2,68 +2,66 @@ package com.lhy.mest.recipe;
 
 import org.jetbrains.annotations.Nullable;
 
-import com.mojang.serialization.MapCodec;
-
-import net.minecraft.core.HolderLookup;
 import net.minecraft.core.NonNullList;
-import net.minecraft.network.RegistryFriendlyByteBuf;
-import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.core.RegistryAccess;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.inventory.CraftingContainer;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.CraftingBookCategory;
-import net.minecraft.world.item.crafting.CraftingInput;
-import net.minecraft.world.item.crafting.CraftingRecipe;
+import net.minecraft.world.item.crafting.CustomRecipe;
 import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.item.crafting.RecipeSerializer;
 import net.minecraft.world.level.Level;
 
-import de.mari_023.ae2wtlib.api.AE2wtlibAPI;
-import de.mari_023.ae2wtlib.api.registration.WTDefinition;
+import de.mari_023.ae2wtlib.AE2wtlib;
+import de.mari_023.ae2wtlib.wut.ItemWUT;
+import de.mari_023.ae2wtlib.wut.WTDefinition;
+import de.mari_023.ae2wtlib.wut.WUTHandler;
 import de.mari_023.ae2wtlib.wut.recipe.Common;
 
 import com.lhy.mest.item.ItemMEST;
 import com.lhy.mest.registry.ModItems;
 import com.lhy.mest.registry.ModRecipes;
+import com.lhy.mest.terminal.MestTerminal;
 
 /**
  * Shapeless merge of the spliced terminal with any other AE2WTLib wireless terminal into a WUT.
- * Mirrors {@code ae2wtlib:combine} but matches every registered {@link WTDefinition} at runtime.
+ * Mirrors {@code ae2wtlib:combine} but matches every registered terminal definition at runtime.
  */
-public final class MestWutCombineRecipe implements CraftingRecipe {
+public final class MestWutCombineRecipe extends CustomRecipe {
+    public MestWutCombineRecipe(ResourceLocation id, CraftingBookCategory category) {
+        super(id, category);
+    }
+
     @Override
-    public boolean matches(CraftingInput input, Level level) {
+    public boolean matches(CraftingContainer input, Level level) {
         return findInputs(input) != null;
     }
 
     @Override
-    public ItemStack assemble(CraftingInput input, HolderLookup.Provider registries) {
+    public ItemStack assemble(CraftingContainer input, RegistryAccess registries) {
         Inputs inputs = findInputs(input);
         if (inputs == null) {
             return ItemStack.EMPTY;
         }
-        ItemStack wut = new ItemStack(AE2wtlibAPI.getWUT());
-        wut = Common.mergeTerminal(wut, inputs.mest(), inputs.mestDefinition());
-        return Common.mergeTerminal(wut, inputs.other(), inputs.otherDefinition());
+        ItemStack wut = new ItemStack(AE2wtlib.UNIVERSAL_TERMINAL);
+        wut = Common.mergeTerminal(wut, inputs.mest().copy(), MestTerminal.TERMINAL_NAME);
+        return Common.mergeTerminal(wut, inputs.other().copy(), inputs.otherName());
     }
 
     @Nullable
-    private static Inputs findInputs(CraftingInput input) {
-        if (input.ingredientCount() != 2) {
-            return null;
-        }
+    private static Inputs findInputs(CraftingContainer input) {
         ItemStack mest = ItemStack.EMPTY;
         ItemStack other = ItemStack.EMPTY;
-        WTDefinition mestDefinition = null;
-        WTDefinition otherDefinition = null;
-        for (int slot = 0; slot < input.size(); slot++) {
+        String otherName = null;
+        int count = 0;
+        for (int slot = 0; slot < input.getContainerSize(); slot++) {
             ItemStack stack = input.getItem(slot);
             if (stack.isEmpty()) {
                 continue;
             }
-            if (AE2wtlibAPI.isUniversalTerminal(stack)) {
-                return null;
-            }
-            WTDefinition definition = WTDefinition.ofOrNull(stack);
-            if (definition == null) {
+            count++;
+            if (stack.getItem() instanceof ItemWUT) {
                 return null;
             }
             if (stack.getItem() instanceof ItemMEST) {
@@ -71,19 +69,19 @@ public final class MestWutCombineRecipe implements CraftingRecipe {
                     return null;
                 }
                 mest = stack;
-                mestDefinition = definition;
-            } else {
-                if (!other.isEmpty()) {
-                    return null;
-                }
-                other = stack;
-                otherDefinition = definition;
+                continue;
             }
+            String name = WUTHandler.getCurrentTerminal(stack);
+            if (name.isEmpty() || !other.isEmpty()) {
+                return null;
+            }
+            other = stack;
+            otherName = name;
         }
-        if (mest.isEmpty() || other.isEmpty() || mestDefinition == null || otherDefinition == null) {
+        if (count != 2 || mest.isEmpty() || other.isEmpty()) {
             return null;
         }
-        return new Inputs(mest, mestDefinition, other, otherDefinition);
+        return new Inputs(mest, other, otherName);
     }
 
     @Override
@@ -92,17 +90,19 @@ public final class MestWutCombineRecipe implements CraftingRecipe {
     }
 
     @Override
-    public ItemStack getResultItem(HolderLookup.Provider registries) {
-        return new ItemStack(AE2wtlibAPI.getWUT());
+    public ItemStack getResultItem(RegistryAccess registries) {
+        return new ItemStack(AE2wtlib.UNIVERSAL_TERMINAL);
     }
 
     @Override
     public NonNullList<Ingredient> getIngredients() {
         NonNullList<Ingredient> ingredients = NonNullList.create();
         ingredients.add(Ingredient.of(ModItems.SPLICED_TERMINAL.get()));
-        ItemStack[] others = WTDefinition.wirelessTerminals().stream()
-                .filter(definition -> !(definition.item() instanceof ItemMEST))
-                .map(definition -> new ItemStack(definition.item()))
+        ItemStack[] others = WUTHandler.wirelessTerminals.values().stream()
+                .map(WTDefinition::item)
+                .filter(item -> !(item instanceof ItemMEST))
+                .filter(item -> item instanceof net.minecraft.world.level.ItemLike)
+                .map(item -> new ItemStack((net.minecraft.world.level.ItemLike) item))
                 .toArray(ItemStack[]::new);
         if (others.length > 0) {
             ingredients.add(Ingredient.of(others));
@@ -115,32 +115,6 @@ public final class MestWutCombineRecipe implements CraftingRecipe {
         return ModRecipes.WUT_COMBINE.get();
     }
 
-    @Override
-    public CraftingBookCategory category() {
-        return CraftingBookCategory.EQUIPMENT;
-    }
-
-    private record Inputs(
-            ItemStack mest,
-            WTDefinition mestDefinition,
-            ItemStack other,
-            WTDefinition otherDefinition) {
-    }
-
-    public static final class Serializer implements RecipeSerializer<MestWutCombineRecipe> {
-        private static final MestWutCombineRecipe INSTANCE = new MestWutCombineRecipe();
-        private static final MapCodec<MestWutCombineRecipe> CODEC = MapCodec.unit(INSTANCE);
-        private static final StreamCodec<RegistryFriendlyByteBuf, MestWutCombineRecipe> STREAM_CODEC =
-                StreamCodec.unit(INSTANCE);
-
-        @Override
-        public MapCodec<MestWutCombineRecipe> codec() {
-            return CODEC;
-        }
-
-        @Override
-        public StreamCodec<RegistryFriendlyByteBuf, MestWutCombineRecipe> streamCodec() {
-            return STREAM_CODEC;
-        }
+    private record Inputs(ItemStack mest, ItemStack other, String otherName) {
     }
 }

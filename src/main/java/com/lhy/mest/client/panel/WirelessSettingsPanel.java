@@ -8,35 +8,32 @@ import java.util.List;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractWidget;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
-import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.ItemStack;
 
-import net.neoforged.neoforge.network.PacketDistributor;
+import com.lhy.mest.network.MestPackets;
 
 import appeng.client.gui.style.PaletteColor;
 import appeng.client.gui.style.ScreenStyle;
 import appeng.client.gui.widgets.AECheckbox;
-import appeng.menu.locator.ItemMenuHostLocator;
 
-import de.mari_023.ae2wtlib.AE2wtlibAdditionalComponents;
-import de.mari_023.ae2wtlib.api.AE2wtlibComponents;
-import de.mari_023.ae2wtlib.api.TextConstants;
-import de.mari_023.ae2wtlib.api.terminal.WUTHandler;
-import de.mari_023.ae2wtlib.networking.TerminalSettingsPacket;
+import de.mari_023.ae2wtlib.AE2wtlibTags;
+import de.mari_023.ae2wtlib.TextConstants;
 import de.mari_023.ae2wtlib.wct.magnet_card.MagnetHandler;
 import de.mari_023.ae2wtlib.wct.magnet_card.MagnetMode;
 
 import com.lhy.mest.client.dock.DockManager;
 import com.lhy.mest.client.dock.ModulePanel;
+import com.lhy.mest.network.MestTerminalSettingsPacket;
 import com.lhy.mest.network.ToolkitBarTogglePacket;
 import com.lhy.mest.network.ToolkitQuickMovePacket;
 import com.lhy.mest.terminal.MESTMenu;
 import com.lhy.mest.terminal.ToolkitBarState;
 
 /**
- * Wireless-terminal settings as a dock module. Saves through wtlib's
- * {@link TerminalSettingsPacket} and {@link MagnetHandler}.
+ * Wireless-terminal settings as a dock module. Saves through {@link MestTerminalSettingsPacket}
+ * (only the settings flags) and {@link MagnetHandler}.
  */
 public class WirelessSettingsPanel extends ModulePanel {
     private static final int ROW = 16;
@@ -145,12 +142,13 @@ public class WirelessSettingsPanel extends ModulePanel {
 
     public void reloadFromStack() {
         ItemStack stack = menu.getMestHost().getItemStack();
-        pickBlock.setSelected(stack.getOrDefault(AE2wtlibComponents.PICK_BLOCK, false));
-        craftIfMissing.setSelected(stack.getOrDefault(AE2wtlibComponents.CRAFT_IF_MISSING, false));
+        CompoundTag tag = stack.getOrCreateTag();
+        pickBlock.setSelected(tag.getBoolean(AE2wtlibTags.PICK_BLOCK));
+        craftIfMissing.setSelected(tag.getBoolean(AE2wtlibTags.CRAFT_IF_MISSING));
         craftIfMissing.active = pickBlock.isSelected();
-        restock.setSelected(stack.getOrDefault(AE2wtlibComponents.RESTOCK, false));
+        restock.setSelected(tag.getBoolean(AE2wtlibTags.RESTOCK));
         pullItems.setSelected(dock.pullItemsRecipeButton());
-        MagnetMode mode = stack.getOrDefault(AE2wtlibAdditionalComponents.MAGNET_SETTINGS, MagnetMode.OFF);
+        MagnetMode mode = MagnetMode.fromByte(tag.getByte(AE2wtlibTags.MAGNET_SETTINGS));
         magnet.setSelected(mode.magnet());
         pickupToME.setSelected(mode.pickupToME());
         boolean hasCard = MagnetHandler.getMagnetMode(stack) != MagnetMode.NO_CARD
@@ -172,38 +170,28 @@ public class WirelessSettingsPanel extends ModulePanel {
 
     private void saveToolkitBar() {
         ToolkitBarState.setBarEnabled(menu.getPlayer(), toolkitBar.isSelected());
-        PacketDistributor.sendToServer(new ToolkitBarTogglePacket(toolkitBar.isSelected()));
+        MestPackets.sendToServer(new ToolkitBarTogglePacket(toolkitBar.isSelected()));
     }
 
     private void saveToolkitQuickMove() {
         ToolkitBarState.setQuickMove(menu.getPlayer(), toolkitQuickMove.isSelected());
-        PacketDistributor.sendToServer(new ToolkitQuickMovePacket(toolkitQuickMove.isSelected()));
+        MestPackets.sendToServer(new ToolkitQuickMovePacket(toolkitQuickMove.isSelected()));
     }
 
     private void save() {
         ItemStack stack = menu.getMestHost().getItemStack();
-        stack.set(AE2wtlibComponents.PICK_BLOCK, pickBlock.isSelected());
-        stack.set(AE2wtlibComponents.CRAFT_IF_MISSING, craftIfMissing.isSelected());
-        stack.set(AE2wtlibComponents.RESTOCK, restock.isSelected());
-        MagnetMode mode = stack.getOrDefault(AE2wtlibAdditionalComponents.MAGNET_SETTINGS, MagnetMode.OFF);
+        CompoundTag tag = stack.getOrCreateTag();
+        tag.putBoolean(AE2wtlibTags.PICK_BLOCK, pickBlock.isSelected());
+        tag.putBoolean(AE2wtlibTags.CRAFT_IF_MISSING, craftIfMissing.isSelected());
+        tag.putBoolean(AE2wtlibTags.RESTOCK, restock.isSelected());
+        MagnetMode mode = MagnetMode.fromByte(tag.getByte(AE2wtlibTags.MAGNET_SETTINGS));
         MagnetMode next = mode.set(magnet.isSelected(), pickupToME.isSelected());
         MagnetHandler.saveMagnetMode(stack, next);
-        stack.set(AE2wtlibAdditionalComponents.MAGNET_SETTINGS, next);
-
-        ItemMenuHostLocator locator = menu.getMestHost().getLocator();
-        if (locator == null) {
-            return;
-        }
-        PacketDistributor.sendToServer(new TerminalSettingsPacket(
-                locator,
+        MestPackets.sendToServer(new MestTerminalSettingsPacket(
                 pickBlock.isSelected(),
+                craftIfMissing.isSelected(),
                 restock.isSelected(),
-                magnet.isSelected(),
-                pickupToME.isSelected(),
-                craftIfMissing.isSelected()));
-        if (menu.getPlayer() instanceof ServerPlayer serverPlayer) {
-            WUTHandler.updateClientTerminal(serverPlayer, locator, stack);
-        }
+                next.getId()));
     }
 
     @Override

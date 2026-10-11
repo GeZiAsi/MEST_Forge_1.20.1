@@ -8,9 +8,9 @@ import appeng.client.gui.AEBaseScreen;
 import appeng.client.gui.implementations.AESubScreen;
 import appeng.client.gui.style.ScreenStyle;
 
-import de.mari_023.ae2wtlib.api.TextConstants;
-import de.mari_023.ae2wtlib.api.gui.Icon;
-import de.mari_023.ae2wtlib.api.gui.IconButton;
+import de.mari_023.ae2wtlib.TextConstants;
+import com.lhy.mest.client.wt.Icon;
+import com.lhy.mest.client.wt.IconButton;
 
 import com.lhy.mest.terminal.MestMagnetMenu;
 
@@ -53,7 +53,6 @@ public class MestMagnetScreen extends AEBaseScreen<MestMagnetMenu> {
         return mode == IncludeExclude.WHITELIST ? Icon.YES : Icon.NO;
     }
 
-    @Override
     protected boolean shouldAddToolbar() {
         return false;
     }

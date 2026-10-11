@@ -18,10 +18,12 @@ import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.renderer.Rect2i;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.inventory.Slot;
-import net.neoforged.neoforge.network.PacketDistributor;
+import com.lhy.mest.network.MestPackets;
 
 import appeng.client.Point;
 import appeng.client.gui.Icon;
+
+import com.lhy.mest.client.Ae2Icons;
 import appeng.client.gui.style.Blitter;
 import appeng.client.gui.style.ScreenStyle;
 import appeng.client.gui.widgets.AETextField;
@@ -29,10 +31,8 @@ import appeng.client.gui.widgets.ITooltip;
 import appeng.client.gui.widgets.Scrollbar;
 import appeng.core.localization.GuiText;
 
-import com.extendedae_plus.network.UploadEncodedPatternToProviderC2SPacket;
-import com.extendedae_plus.util.uploadPattern.ExtendedAEPatternUploadUtil;
-import com.extendedae_plus.util.uploadPattern.ExtendedAEPatternUploadUtil.RecipeTypeMapping;
-import com.glodblock.github.extendedae.client.button.EPPIcon;
+import com.lhy.mest.compat.plus.PlusUploadShim;
+import com.lhy.mest.compat.plus.PlusUploadShim.RecipeTypeMapping;
 import com.lhy.mest.client.PinyinSearch;
 import com.lhy.mest.client.dock.ModulePanel;
 import com.lhy.mest.compat.plus.PlusPickerPrefs;
@@ -171,9 +171,9 @@ public class ProviderSelectPanel extends ModulePanel {
             raw.add(new RawRow(packet.ids().get(i), packet.names().get(i), packet.emptySlots().get(i)));
         }
         if (packet.applyPreset()) {
-            String recent = ExtendedAEPatternUploadUtil.consumeLastProviderSearchKey();
+            String recent = PlusUploadShim.consumeLastProviderSearchKey();
             if (recent != null && !recent.isBlank()) {
-                search = ExtendedAEPatternUploadUtil.resolveProviderSearchKey(recent);
+                search = PlusUploadShim.resolveProviderSearchKey(recent);
                 if (search == null) {
                     search = recent;
                 }
@@ -323,7 +323,7 @@ public class ProviderSelectPanel extends ModulePanel {
                 return true;
             }
             if (button == 0) {
-                ExtendedAEPatternUploadUtil.removeRecipeTypeMapping(row.mappingKey());
+                PlusUploadShim.removeRecipeTypeMapping(row.mappingKey());
                 if (row.mappingKey().equals(editingMappingKey)) {
                     editingMappingKey = null;
                 }
@@ -337,8 +337,7 @@ public class ProviderSelectPanel extends ModulePanel {
             return true;
         }
         if (button == 0) {
-            PacketDistributor.sendToServer(new UploadEncodedPatternToProviderC2SPacket(
-                    row.id(), true, row.name()));
+            PlusUploadShim.uploadToProvider(row.id(), true, row.name());
             if (Minecraft.getInstance().screen instanceof com.lhy.mest.client.MESTScreen screen) {
                 screen.dismissProviderPicker(false);
             }
@@ -472,9 +471,9 @@ public class ProviderSelectPanel extends ModulePanel {
             return;
         }
         if (editingMappingKey != null && !editingMappingKey.isBlank() && !editingMappingKey.equals(key)) {
-            ExtendedAEPatternUploadUtil.removeRecipeTypeMapping(editingMappingKey);
+            PlusUploadShim.removeRecipeTypeMapping(editingMappingKey);
         }
-        if (!ExtendedAEPatternUploadUtil.addOrUpdateRecipeTypeMapping(key, value)) {
+        if (!PlusUploadShim.addOrUpdateRecipeTypeMapping(key, value)) {
             if (player != null) {
                 player.sendSystemMessage(Component.translatable("extendedae_plus.message.mapping.add_fail"));
             }
@@ -506,15 +505,14 @@ public class ProviderSelectPanel extends ModulePanel {
             return false;
         }
         GroupRow only = visibleRows.get(0);
-        PacketDistributor.sendToServer(new UploadEncodedPatternToProviderC2SPacket(
-                only.id(), true, only.name()));
+        PlusUploadShim.uploadToProvider(only.id(), true, only.name());
         return true;
     }
 
     private void rebuildVisible() {
         visibleRows.clear();
         if (mappingMode) {
-            for (RecipeTypeMapping mapping : ExtendedAEPatternUploadUtil.getRecipeTypeMappings()) {
+            for (RecipeTypeMapping mapping : PlusUploadShim.getRecipeTypeMappings()) {
                 String label = mapping.key() + " → " + mapping.value();
                 if (!nameMatches(label, search)) {
                     continue;
@@ -688,7 +686,7 @@ public class ProviderSelectPanel extends ModulePanel {
         if (query == null || query.isBlank()) {
             return true;
         }
-        String key = ExtendedAEPatternUploadUtil.resolveProviderSearchKey(query.trim());
+        String key = PlusUploadShim.resolveProviderSearchKey(query.trim());
         if (key == null || key.isBlank()) {
             key = query.trim();
         }
@@ -766,7 +764,7 @@ public class ProviderSelectPanel extends ModulePanel {
 
         private CompactToggle(OnPress onPress, int atlasCol, java.util.function.Supplier<List<Component>> tooltip) {
             super(0, 0, BUTTON, BUTTON, Component.empty(), onPress, Button.DEFAULT_NARRATION);
-            this.icon = Icon.COG;
+            this.icon = Ae2Icons.COG;
             this.atlasCol = atlasCol;
             this.tooltip = tooltip;
         }
@@ -781,15 +779,13 @@ public class ProviderSelectPanel extends ModulePanel {
                 return;
             }
             int yOffset = isHovered() ? 1 : 0;
-            Blitter background = isHovered()
-                    ? EPPIcon.TERMINAL_BUTTON_HOVER
-                    : (isFocused() ? EPPIcon.TERMINAL_BUTTON_FOCUS : EPPIcon.TERMINAL_BUTTON);
-            background.dest(getX(), getY() + yOffset, BUTTON, BUTTON).zOffset(2).blit(graphics);
+            Blitter background = com.lhy.mest.client.MestButtonSprites.terminalButton(isHovered(), isFocused());
+            background.dest(getX(), getY() + yOffset, BUTTON, BUTTON).blit(graphics);
             if (atlasCol >= 0) {
                 com.lhy.mest.client.MestGuiIcons.blit(
                         graphics, atlasCol, 1, getX(), getY() + yOffset, BUTTON, BUTTON);
             } else {
-                icon.getBlitter().dest(getX(), getY() + yOffset, BUTTON, BUTTON).zOffset(3).blit(graphics);
+                icon.getBlitter().dest(getX(), getY() + yOffset, BUTTON, BUTTON).blit(graphics);
             }
         }
 

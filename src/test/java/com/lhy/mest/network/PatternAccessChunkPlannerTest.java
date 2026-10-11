@@ -1,5 +1,7 @@
 package com.lhy.mest.network;
 
+import com.lhy.mest.util.MestLists;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -21,7 +23,7 @@ class PatternAccessChunkPlannerTest {
                 ArrayList::new);
 
         assertEquals(1, chunks.size());
-        assertEquals(0, chunks.getFirst().size());
+        assertEquals(0, MestLists.first(chunks).size());
     }
 
     @Test
@@ -34,7 +36,7 @@ class PatternAccessChunkPlannerTest {
         var chunks = PatternAccessChunkPlanner.chunk(source, 2, 100, value -> 1, ArrayList::new);
 
         assertEquals(java.util.List.of(2, 2, 1), chunks.stream().map(java.util.Map::size).toList());
-        assertNotSame(source.get(0), chunks.getFirst().get(0));
+        assertNotSame(source.get(0), MestLists.first(chunks).get(0));
     }
 
     @Test

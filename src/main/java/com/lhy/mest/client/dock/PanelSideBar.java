@@ -94,11 +94,10 @@ public class PanelSideBar {
         if (!isVisible()) {
             return;
         }
-        g.blitSprite(
-                AppEng.makeId("vertical_buttons_bg"),
+        com.lhy.mest.client.GuiSprites.verticalButtonsBackground(
+                g,
                 bounds.getX() - 2,
                 bounds.getY() - 1,
-                1,
                 bounds.getWidth() + 1,
                 bounds.getHeight() + 4);
     }

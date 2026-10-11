@@ -1,5 +1,7 @@
 package com.lhy.mest.network;
 
+import com.lhy.mest.util.MestLists;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -265,7 +267,7 @@ class PatternProviderClientStateTest {
     private static PatternProviderClientState.Provider<String, String> onlyProvider(
             PatternProviderClientState.Result<String, String> result) {
         assertEquals(1, result.providers().size());
-        return result.providers().getFirst();
+        return MestLists.first(result.providers());
     }
 
     private static PatternProviderClientState.Update<String, String> reset(long epoch) {

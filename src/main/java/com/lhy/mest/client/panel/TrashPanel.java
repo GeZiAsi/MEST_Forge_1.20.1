@@ -11,10 +11,12 @@ import net.minecraft.world.inventory.Slot;
 
 import appeng.client.Point;
 import appeng.client.gui.Icon;
+
+import com.lhy.mest.client.Ae2Icons;
 import appeng.client.gui.widgets.Scrollbar;
 import appeng.client.gui.widgets.TabButton;
 
-import de.mari_023.ae2wtlib.api.TextConstants;
+import de.mari_023.ae2wtlib.TextConstants;
 
 import com.lhy.mest.client.MESTScreen;
 import com.lhy.mest.client.dock.ModulePanel;
@@ -52,7 +54,7 @@ public class TrashPanel extends ModulePanel {
         }
         this.scrollbar.setCaptureMouseWheel(false);
         this.backButton = new TabButton(
-                Icon.BACK,
+                Ae2Icons.BACK,
                 Component.translatable("item.mesplicedterminal.spliced_terminal"),
                 button -> screen.closeTrash());
     }
@@ -64,7 +66,7 @@ public class TrashPanel extends ModulePanel {
 
     @Override
     public void renderIcon(GuiGraphics g, int x, int y, int w, int h, float opacity) {
-        var blitter = de.mari_023.ae2wtlib.api.gui.Icon.TRASH.getBlitter().dest(x, y, w, h).zOffset(3);
+        var blitter = com.lhy.mest.client.wt.Icon.TRASH.getBlitter().dest(x, y, w, h);
         if (opacity < 1.0F) {
             blitter.opacity(opacity);
         }

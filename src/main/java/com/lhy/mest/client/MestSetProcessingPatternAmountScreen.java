@@ -7,6 +7,8 @@ import com.google.common.primitives.Longs;
 import appeng.api.stacks.GenericStack;
 import appeng.client.gui.AESubScreen;
 import appeng.client.gui.Icon;
+
+import com.lhy.mest.client.Ae2Icons;
 import appeng.client.gui.NumberEntryType;
 import appeng.client.gui.me.common.ClientDisplaySlot;
 import appeng.client.gui.widgets.NumberEntryWidget;
@@ -34,7 +36,7 @@ public final class MestSetProcessingPatternAmountScreen
         widgets.addButton("save", GuiText.Set.text(), this::confirm);
 
         var icon = getMenu().getHost().getMainMenuIcon();
-        widgets.add("back", new TabButton(Icon.BACK, icon.getHoverName(), button -> returnToParent()));
+        widgets.add("back", new TabButton(Ae2Icons.BACK, icon.getHoverName(), button -> returnToParent()));
 
         this.amount = widgets.addNumberEntryWidget("amountToStock", NumberEntryType.of(currentStack.what()));
         this.amount.setLongValue(currentStack.amount());

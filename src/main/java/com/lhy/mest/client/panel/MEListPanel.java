@@ -22,6 +22,7 @@ import net.minecraft.world.inventory.Slot;
 
 import appeng.api.client.AEKeyRendering;
 import appeng.api.config.Settings;
+import appeng.api.config.TypeFilter;
 import appeng.api.config.SortDir;
 import appeng.api.config.SortOrder;
 import appeng.api.config.ViewItems;
@@ -68,8 +69,6 @@ public class MEListPanel extends ModulePanel implements ISortSource {
     private static final int TRACK_WIDTH = 12;
     private static final int INSIDE_TRACK_GAP = 6;
     private static final int INSIDE_GUTTER = INSIDE_TRACK_GAP + TRACK_WIDTH;
-    private static final ResourceLocation RAIL_SPRITE = ResourceLocation.fromNamespaceAndPath(
-            MESplicedterminal.MODID, "vertical_buttons_bg");
     private static final int NATIVE_SLOT_COLS = 9;
     private static final int CRAFT_STATUS_SIZE = 20;
     private static final int CRAFT_STATUS_OVERHANG = 4;
@@ -87,7 +86,7 @@ public class MEListPanel extends ModulePanel implements ISortSource {
     private final Repo repo;
     private final List<RepoSlot> repoSlots = new ArrayList<>();
     private final Set<Slot> repoSlotSet = Collections.newSetFromMap(new IdentityHashMap<>());
-    private final Scrollbar scrollbar = new Scrollbar(Scrollbar.BIG);
+    private final Scrollbar scrollbar = new Scrollbar(Scrollbar.DEFAULT);
 
     private AETextField searchField;
     private TabButton craftingStatusBtn;
@@ -273,7 +272,6 @@ public class MEListPanel extends ModulePanel implements ISortSource {
     }
 
     public void tick(boolean paused) {
-        repo.setEnabled(menu.getLinkStatus().connected());
         repo.setPaused(paused);
         layoutChrome();
         updateExternalSearch();
@@ -358,7 +356,7 @@ public class MEListPanel extends ModulePanel implements ISortSource {
     }
 
     public void renderRepoSlot(GuiGraphics g, Font font, RepoSlot slot) {
-        if (!menu.getLinkStatus().connected()) {
+        if (!menu.isLinked()) {
             return;
         }
         GridInventoryEntry entry = slot.getEntry();
@@ -553,16 +551,9 @@ public class MEListPanel extends ModulePanel implements ISortSource {
     }
 
     @Override
-    public Set<AEKeyType> getSortKeyTypes() {
-        Set<AEKeyType> cached = sortKeyTypesCache;
-        if (cached == null) {
-            cached = Set.copyOf(new HashSet<>(AEKeyTypes.getAll()));
-            sortKeyTypesCache = cached;
-        }
-        return cached;
+    public TypeFilter getTypeFilter() {
+        return configSrc.getSetting(Settings.TYPE_FILTER);
     }
-
-    private Set<AEKeyType> sortKeyTypesCache;
 
     private void onSearchChanged(String text) {
         repo.setSearchString(text == null ? "" : text);
@@ -759,8 +750,8 @@ public class MEListPanel extends ModulePanel implements ISortSource {
         if (!scrollerOutside() || !drawOutsideRail) {
             return;
         }
-        g.blitSprite(
-                RAIL_SPRITE,
+        com.lhy.mest.client.GuiSprites.verticalButtonsBackground(
+                g,
                 railLeft() - 2,
                 joinedRailY,
                 RAIL_SPRITE_WIDTH,

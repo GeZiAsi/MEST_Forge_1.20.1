@@ -5,7 +5,7 @@ import org.lwjgl.glfw.GLFW;
 import com.mojang.blaze3d.platform.InputConstants;
 
 import net.minecraft.client.KeyMapping;
-import net.neoforged.neoforge.client.settings.KeyConflictContext;
+import net.minecraftforge.client.settings.KeyConflictContext;
 
 import com.lhy.mest.MESplicedterminal;
 

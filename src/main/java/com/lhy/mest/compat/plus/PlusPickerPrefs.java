@@ -12,7 +12,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
-import net.neoforged.fml.loading.FMLPaths;
+import net.minecraftforge.fml.loading.FMLPaths;
 
 /**
  * Same {@code extendedae_plus/pinned_providers.json} Plus's picker uses, so pins and toggles

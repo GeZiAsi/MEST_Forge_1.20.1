@@ -1,50 +1,42 @@
 package com.lhy.mest.terminal;
 
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 
 import appeng.api.config.FuzzyMode;
 import appeng.api.config.IncludeExclude;
 import appeng.api.stacks.AEKey;
-import appeng.api.stacks.AEKeyType;
 import appeng.util.ConfigInventory;
 import appeng.util.prioritylist.IPartitionList;
 
-import de.mari_023.ae2wtlib.api.AE2wtlibComponents;
-
 /**
- * Magnet filter config stored on the MEST item, using the same wtlib data components as
- * {@code MagnetHost}.
+ * Magnet filter config stored on the MEST item, using the same NBT layout as AE2WTLib's
+ * {@code MagnetHost} (which is hard-wired to the crafting terminal).
  */
 public final class MestMagnetHost {
-    public final ConfigInventory pickupConfig = ConfigInventory.configTypes(27)
-            .changeListener(this::updatePickupFilter)
-            .supportedTypes(AEKeyType.items())
-            .build();
-    public final ConfigInventory insertConfig = ConfigInventory.configTypes(27)
-            .changeListener(this::updateInsertFilter)
-            .supportedTypes(AEKeyType.items())
-            .build();
+    private static final String PICKUP_CONFIG = "pickupConfig";
+    private static final String INSERT_CONFIG = "insertConfig";
+    private static final String PICKUP_MODE = "pickupMode";
+    private static final String INSERT_MODE = "insertMode";
+
+    public final ConfigInventory pickupConfig = ConfigInventory.configTypes(27, this::updatePickupFilter);
+    public final ConfigInventory insertConfig = ConfigInventory.configTypes(27, this::updateInsertFilter);
 
     private IPartitionList pickupFilter;
     private IPartitionList insertFilter;
-    private final Player player;
     private final ItemStack stack;
 
-    public MestMagnetHost(Player player, ItemStack stack) {
-        this.player = player;
+    public MestMagnetHost(ItemStack stack) {
         this.stack = stack;
-        pickupConfig.readFromChildTag(
-                stack.getOrDefault(AE2wtlibComponents.PICKUP_CONFIG, new CompoundTag()),
-                "",
-                player.registryAccess());
-        insertConfig.readFromChildTag(
-                stack.getOrDefault(AE2wtlibComponents.INSERT_CONFIG, new CompoundTag()),
-                "",
-                player.registryAccess());
+        CompoundTag tag = tag();
+        pickupConfig.readFromChildTag(tag, PICKUP_CONFIG);
+        insertConfig.readFromChildTag(tag, INSERT_CONFIG);
         pickupFilter = createFilter(pickupConfig);
         insertFilter = createFilter(insertConfig);
+    }
+
+    private CompoundTag tag() {
+        return stack.getOrCreateTag();
     }
 
     private IPartitionList createFilter(ConfigInventory config) {
@@ -57,17 +49,20 @@ public final class MestMagnetHost {
     }
 
     private void updatePickupFilter() {
+        // ConfigInventory fires its listener while being constructed, before the stack is set.
+        if (stack == null) {
+            return;
+        }
         pickupFilter = createFilter(pickupConfig);
-        CompoundTag tag = stack.getOrDefault(AE2wtlibComponents.PICKUP_CONFIG, new CompoundTag());
-        pickupConfig.writeToChildTag(tag, "", player.registryAccess());
-        stack.set(AE2wtlibComponents.PICKUP_CONFIG, tag);
+        pickupConfig.writeToChildTag(tag(), PICKUP_CONFIG);
     }
 
     private void updateInsertFilter() {
+        if (stack == null) {
+            return;
+        }
         insertFilter = createFilter(insertConfig);
-        CompoundTag tag = stack.getOrDefault(AE2wtlibComponents.INSERT_CONFIG, new CompoundTag());
-        insertConfig.writeToChildTag(tag, "", player.registryAccess());
-        stack.set(AE2wtlibComponents.INSERT_CONFIG, tag);
+        insertConfig.writeToChildTag(tag(), INSERT_CONFIG);
     }
 
     public IPartitionList getPickupFilter() {
@@ -75,11 +70,11 @@ public final class MestMagnetHost {
     }
 
     public IncludeExclude getPickupMode() {
-        return stack.getOrDefault(AE2wtlibComponents.PICKUP_MODE, IncludeExclude.BLACKLIST);
+        return tag().getBoolean(PICKUP_MODE) ? IncludeExclude.WHITELIST : IncludeExclude.BLACKLIST;
     }
 
     public void togglePickupMode() {
-        stack.set(AE2wtlibComponents.PICKUP_MODE, toggle(getPickupMode()));
+        tag().putBoolean(PICKUP_MODE, getPickupMode() != IncludeExclude.WHITELIST);
     }
 
     public IPartitionList getInsertFilter() {
@@ -87,42 +82,27 @@ public final class MestMagnetHost {
     }
 
     public IncludeExclude getInsertMode() {
-        return stack.getOrDefault(AE2wtlibComponents.INSERT_MODE, IncludeExclude.BLACKLIST);
+        return tag().getBoolean(INSERT_MODE) ? IncludeExclude.WHITELIST : IncludeExclude.BLACKLIST;
     }
 
     public void toggleInsertMode() {
-        stack.set(AE2wtlibComponents.INSERT_MODE, toggle(getInsertMode()));
+        tag().putBoolean(INSERT_MODE, getInsertMode() != IncludeExclude.WHITELIST);
     }
 
     public void copyUp() {
-        pickupConfig.readFromChildTag(
-                stack.getOrDefault(AE2wtlibComponents.INSERT_CONFIG, new CompoundTag()),
-                "",
-                player.registryAccess());
+        pickupConfig.readFromChildTag(tag(), INSERT_CONFIG);
     }
 
     public void copyDown() {
-        insertConfig.readFromChildTag(
-                stack.getOrDefault(AE2wtlibComponents.PICKUP_CONFIG, new CompoundTag()),
-                "",
-                player.registryAccess());
+        insertConfig.readFromChildTag(tag(), PICKUP_CONFIG);
     }
 
     public void switchInsertPickup() {
-        CompoundTag pickupTag = stack.getOrDefault(AE2wtlibComponents.PICKUP_CONFIG, new CompoundTag());
-        CompoundTag insertTag = stack.getOrDefault(AE2wtlibComponents.INSERT_CONFIG, new CompoundTag());
-        pickupConfig.writeToChildTag(pickupTag, "", player.registryAccess());
-        stack.set(AE2wtlibComponents.INSERT_CONFIG, pickupTag);
-        insertConfig.writeToChildTag(insertTag, "", player.registryAccess());
-        stack.set(AE2wtlibComponents.PICKUP_CONFIG, insertTag);
-        pickupConfig.readFromChildTag(
-                stack.getOrDefault(AE2wtlibComponents.PICKUP_CONFIG, new CompoundTag()),
-                "",
-                player.registryAccess());
-        insertConfig.readFromChildTag(
-                stack.getOrDefault(AE2wtlibComponents.INSERT_CONFIG, new CompoundTag()),
-                "",
-                player.registryAccess());
+        CompoundTag tag = tag();
+        pickupConfig.writeToChildTag(tag, INSERT_CONFIG);
+        insertConfig.writeToChildTag(tag, PICKUP_CONFIG);
+        pickupConfig.readFromChildTag(tag, PICKUP_CONFIG);
+        insertConfig.readFromChildTag(tag, INSERT_CONFIG);
     }
 
     public boolean matchesPickup(AEKey key) {
@@ -142,9 +122,5 @@ public final class MestMagnetHost {
         }
         boolean listed = filter.isListed(key);
         return mode == IncludeExclude.WHITELIST ? listed : !listed;
-    }
-
-    private static IncludeExclude toggle(IncludeExclude mode) {
-        return mode == IncludeExclude.WHITELIST ? IncludeExclude.BLACKLIST : IncludeExclude.WHITELIST;
     }
 }

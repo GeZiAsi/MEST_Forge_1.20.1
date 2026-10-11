@@ -1,45 +1,37 @@
 package com.lhy.mest.network;
 
 import java.util.HashMap;
-import java.util.Map;
 
-import com.google.common.collect.Maps;
-
-import net.minecraft.core.Holder;
-import net.minecraft.core.registries.Registries;
-import net.minecraft.network.RegistryFriendlyByteBuf;
-import net.minecraft.network.codec.ByteBufCodecs;
-import net.minecraft.network.codec.StreamCodec;
-import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.world.item.Item;
-import net.neoforged.neoforge.network.handling.IPayloadContext;
 
-import com.lhy.mest.MESplicedterminal;
 import com.lhy.mest.client.MestRestockClient;
 
 /** ME counts for hotbar overlay, same payload shape as wtlib RestockAmountPacket. */
-public record MestRestockAmountPacket(HashMap<Holder<Item>, Long> items) implements CustomPacketPayload {
-    public static final Type<MestRestockAmountPacket> TYPE =
-            new Type<>(ResourceLocation.fromNamespaceAndPath(MESplicedterminal.MODID, "restock_amounts"));
-
-    public static final StreamCodec<RegistryFriendlyByteBuf, MestRestockAmountPacket> STREAM_CODEC =
-            ByteBufCodecs.map(
-                            Maps::newHashMapWithExpectedSize,
-                            ByteBufCodecs.holderRegistry(Registries.ITEM),
-                            ByteBufCodecs.VAR_LONG)
-                    .map(MestRestockAmountPacket::new, MestRestockAmountPacket::items);
-
-    @Override
-    public Type<? extends CustomPacketPayload> type() {
-        return TYPE;
+public record MestRestockAmountPacket(HashMap<Item, Long> items) {
+    public void write(FriendlyByteBuf buf) {
+        buf.writeVarInt(items.size());
+        items.forEach((item, count) -> {
+            buf.writeId(BuiltInRegistries.ITEM, item);
+            buf.writeVarLong(count);
+        });
     }
 
-    public static void handle(MestRestockAmountPacket packet, IPayloadContext context) {
-        context.enqueueWork(() -> {
-            Map<Item, Long> map = new HashMap<>();
-            packet.items().forEach((item, count) -> map.put(item.value(), count));
-            MestRestockClient.setAmounts(map);
-        });
+    public static MestRestockAmountPacket read(FriendlyByteBuf buf) {
+        int size = buf.readVarInt();
+        HashMap<Item, Long> items = new HashMap<>(Math.min(size, 256));
+        for (int i = 0; i < size; i++) {
+            Item item = buf.readById(BuiltInRegistries.ITEM);
+            long count = buf.readVarLong();
+            if (item != null) {
+                items.put(item, count);
+            }
+        }
+        return new MestRestockAmountPacket(items);
+    }
+
+    public static void handle(MestRestockAmountPacket packet, PacketContext context) {
+        context.enqueueWork(() -> MestRestockClient.setAmounts(packet.items()));
     }
 }

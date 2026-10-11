@@ -3,14 +3,10 @@ package com.lhy.mest.compat;
 import java.util.Set;
 import java.util.function.Predicate;
 
-import net.minecraft.core.component.DataComponents;
-import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.level.Level;
-import net.neoforged.fml.ModList;
 
 import appeng.api.crafting.IPatternDetails;
 import appeng.api.crafting.PatternDetailsHelper;
@@ -26,7 +22,7 @@ import com.lhy.mest.compat.plus.PlusEncodingUpload;
 /**
  * Auto-uploads non-processing encoded patterns after encode (no Shift): ECO
  * PatternContainers first, then EAEP assembler matrix, then other crafting-assembler
- * PatternContainers (Lightning Tech matter-warping matrix, etc.). Duplicate checks run
+ * PatternContainers (ExtendedAE assembler matrix, etc.). Duplicate checks run
  * before any insert.
  */
 public final class MestCraftingPatternAutoUpload {
@@ -38,8 +34,7 @@ public final class MestCraftingPatternAutoUpload {
             "neoecoae:crafting_system_l4",
             "neoecoae:crafting_system_l6",
             "neoecoae:crafting_system_l9",
-            "ae2cs:meteorite_pattern_provider",
-            "ae2lt:matter_warping_matrix_controller");
+            "ae2cs:meteorite_pattern_provider");
 
     private MestCraftingPatternAutoUpload() {
     }
@@ -140,9 +135,6 @@ public final class MestCraftingPatternAutoUpload {
     }
 
     static boolean isCraftingUploadGroup(PatternContainerGroup group) {
-        if (ModList.get().isLoaded("ae2lt")) {
-            return LtCraftingPatternSupport.isCraftingUploadGroup(group);
-        }
         if (group == null) {
             return false;
         }
@@ -151,9 +143,6 @@ public final class MestCraftingPatternAutoUpload {
     }
 
     static boolean containsDuplicate(InternalInventory inventory, ItemStack candidate, Level level) {
-        if (ModList.get().isLoaded("ae2lt")) {
-            return LtCraftingPatternSupport.containsDuplicate(inventory, candidate, level);
-        }
         return containsEquivalentPattern(inventory, candidate, level);
     }
 
@@ -168,7 +157,7 @@ public final class MestCraftingPatternAutoUpload {
             if (stored.isEmpty()) {
                 continue;
             }
-            if (ItemStack.isSameItemSameComponents(stripEncodePlayer(stored), strippedCandidate)) {
+            if (ItemStack.isSameItemSameTags(stripEncodePlayer(stored), strippedCandidate)) {
                 return true;
             }
             IPatternDetails storedDetails = PatternDetailsHelper.decodePattern(stored, level);
@@ -182,10 +171,9 @@ public final class MestCraftingPatternAutoUpload {
 
     private static ItemStack stripEncodePlayer(ItemStack stack) {
         ItemStack copy = stack.copy();
-        CustomData data = copy.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.of(new CompoundTag()));
-        CompoundTag tag = data.copyTag();
-        tag.remove("encodePlayer");
-        copy.set(DataComponents.CUSTOM_DATA, CustomData.of(tag));
+        if (copy.getTag() != null) {
+            copy.getTag().remove("encodePlayer");
+        }
         return copy;
     }
 }

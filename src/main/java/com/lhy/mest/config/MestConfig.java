@@ -1,6 +1,6 @@
 package com.lhy.mest.config;
 
-import net.neoforged.neoforge.common.ModConfigSpec;
+import net.minecraftforge.common.ForgeConfigSpec;
 
 /**
  * Server config, synced to clients on join: every slot count here shapes menus, so both sides must
@@ -20,24 +20,24 @@ public final class MestConfig {
     public static final int NETWORK_TOOLKIT_MAX = 9 * 24;
     public static final int NETWORK_TOOLKIT_STEP = 9;
 
-    private static final ModConfigSpec.Builder BUILDER = new ModConfigSpec.Builder();
-    private static final ModConfigSpec.IntValue PATTERN_CACHE_SLOTS = BUILDER
+    private static final ForgeConfigSpec.Builder BUILDER = new ForgeConfigSpec.Builder();
+    private static final ForgeConfigSpec.IntValue PATTERN_CACHE_SLOTS = BUILDER
             .comment("样板缓存槽位数。最少 18，之后按 9 递增（一行 9 格）。下次打开终端生效。")
             .translation("gui.mesplicedterminal.config.pattern_cache_slots")
             .defineInRange("patternCacheSlots", 36, PATTERN_CACHE_MIN, PATTERN_CACHE_MAX);
-    private static final ModConfigSpec.IntValue TRASH_SLOTS = BUILDER
+    private static final ForgeConfigSpec.IntValue TRASH_SLOTS = BUILDER
             .comment("垃圾桶槽位数。最少 27（3×9），按 9 递增。下次打开终端生效。")
             .translation("gui.mesplicedterminal.config.trash_slots")
             .defineInRange("trashSlots", TRASH_MAX, TRASH_MIN, TRASH_MAX);
-    private static final ModConfigSpec.IntValue TOOLKIT_SLOTS = BUILDER
+    private static final ForgeConfigSpec.IntValue TOOLKIT_SLOTS = BUILDER
             .comment("工具包槽位数。最少 18（2×9），按 9 递增。只存放不可堆叠物品。下次打开终端生效。")
             .translation("gui.mesplicedterminal.config.toolkit_slots")
             .defineInRange("toolkitSlots", 27, TOOLKIT_MIN, TOOLKIT_MAX);
-    private static final ModConfigSpec.IntValue NETWORK_TOOLKIT_SLOTS = BUILDER
+    private static final ForgeConfigSpec.IntValue NETWORK_TOOLKIT_SLOTS = BUILDER
             .comment("网络工具包升级槽位数。最少 9（3×3），按 9 递增。下次打开界面生效。")
             .translation("gui.mesplicedterminal.config.network_toolkit_slots")
             .defineInRange("networkToolkitSlots", 27, NETWORK_TOOLKIT_MIN, NETWORK_TOOLKIT_MAX);
-    public static final ModConfigSpec SPEC = BUILDER.build();
+    public static final ForgeConfigSpec SPEC = BUILDER.build();
 
     private MestConfig() {}
 

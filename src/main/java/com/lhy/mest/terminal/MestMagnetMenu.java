@@ -12,21 +12,20 @@ import appeng.menu.AEBaseMenu;
 import appeng.menu.ISubMenu;
 import appeng.menu.SlotSemantic;
 import appeng.menu.guisync.GuiSync;
-import appeng.menu.implementations.MenuTypeBuilder;
 import appeng.menu.slot.FakeSlot;
 import appeng.util.ConfigInventory;
 import appeng.util.ConfigMenuInventory;
 
-import de.mari_023.ae2wtlib.api.gui.AE2wtlibSlotSemantics;
+import de.mari_023.ae2wtlib.AE2wtlibSlotSemantics;
 
 import com.lhy.mest.MESplicedterminal;
 
 /** Magnet filter submenu bound to the spliced terminal item. */
 public class MestMagnetMenu extends AEBaseMenu implements ISubMenu {
     public static final ResourceLocation ID =
-            ResourceLocation.fromNamespaceAndPath(MESplicedterminal.MODID, "magnet");
+            new ResourceLocation(MESplicedterminal.MODID, "magnet");
     public static final MenuType<MestMagnetMenu> TYPE =
-            MenuTypeBuilder.create(MestMagnetMenu::new, MESTMenuHost.class).buildUnregistered(ID);
+            MestMenuTypes.create(ID, MestMagnetMenu::new, MESTMenuHost.class);
 
     private static final String TOGGLE_PICKUP_MODE = "togglepickupmode";
     private static final String TOGGLE_INSERT_MODE = "toggleinsertmode";
@@ -45,7 +44,7 @@ public class MestMagnetMenu extends AEBaseMenu implements ISubMenu {
     public MestMagnetMenu(int id, Inventory playerInventory, MESTMenuHost host) {
         super(TYPE, id, playerInventory, host);
         this.host = host;
-        this.magnetHost = new MestMagnetHost(playerInventory.player, host.getItemStack());
+        this.magnetHost = new MestMagnetHost(host.getItemStack());
         addConfigSlots(magnetHost.pickupConfig, AE2wtlibSlotSemantics.PICKUP_CONFIG);
         addConfigSlots(magnetHost.insertConfig, AE2wtlibSlotSemantics.INSERT_CONFIG);
         createPlayerInventorySlots(playerInventory);

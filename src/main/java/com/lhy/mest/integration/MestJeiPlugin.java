@@ -17,8 +17,7 @@ import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.CraftingRecipe;
 import net.minecraft.world.item.crafting.Recipe;
-import net.minecraft.world.item.crafting.RecipeHolder;
-import net.neoforged.neoforge.fluids.FluidStack;
+import net.minecraftforge.fluids.FluidStack;
 
 import mezz.jei.api.IModPlugin;
 import mezz.jei.api.JeiPlugin;
@@ -28,7 +27,7 @@ import mezz.jei.api.constants.RecipeTypes;
 import mezz.jei.api.gui.ingredient.IRecipeSlotView;
 import mezz.jei.api.gui.ingredient.IRecipeSlotsView;
 import mezz.jei.api.ingredients.ITypedIngredient;
-import mezz.jei.api.neoforge.NeoForgeTypes;
+import mezz.jei.api.forge.ForgeTypes;
 import mezz.jei.api.recipe.RecipeIngredientRole;
 import mezz.jei.api.recipe.RecipeType;
 import mezz.jei.api.recipe.transfer.IRecipeTransferError;
@@ -52,14 +51,14 @@ import appeng.api.stacks.AEFluidKey;
 import appeng.api.stacks.AEKey;
 import appeng.api.stacks.GenericStack;
 import appeng.core.localization.ItemModText;
-import appeng.integration.modules.itemlists.CraftingHelper;
-import appeng.integration.modules.itemlists.TransferHelper;
+import appeng.integration.modules.jei.GenericEntryStackHelper;
+import appeng.integration.modules.jeirei.CraftingHelper;
+import appeng.integration.modules.jeirei.TransferHelper;
 import appeng.menu.me.common.GridInventoryEntry;
 import appeng.menu.me.items.CraftingTermMenu;
 
 import com.lhy.mest.MESplicedterminal;
 import com.lhy.mest.client.MESTScreen;
-import com.lhy.mest.compat.UselessPatternBridge;
 import com.lhy.mest.terminal.MESTMenu;
 
 /**
@@ -78,7 +77,7 @@ import com.lhy.mest.terminal.MESTMenu;
 @JeiPlugin
 public class MestJeiPlugin implements IModPlugin {
     private static final ResourceLocation UID =
-            ResourceLocation.fromNamespaceAndPath(MESplicedterminal.MODID, "jei_plugin");
+            new ResourceLocation(MESplicedterminal.MODID, "jei_plugin");
 
     @Override
     public ResourceLocation getPluginUid() {
@@ -134,8 +133,38 @@ public class MestJeiPlugin implements IModPlugin {
             int guiLeft, int guiTop, int guiXSize, int guiYSize, int screenWidth, int screenHeight)
             implements IGuiProperties {
         @Override
-        public Class<? extends Screen> screenClass() {
+        public Class<? extends Screen> getScreenClass() {
             return MESTScreen.class;
+        }
+
+        @Override
+        public int getGuiLeft() {
+            return guiLeft;
+        }
+
+        @Override
+        public int getGuiTop() {
+            return guiTop;
+        }
+
+        @Override
+        public int getGuiXSize() {
+            return guiXSize;
+        }
+
+        @Override
+        public int getGuiYSize() {
+            return guiYSize;
+        }
+
+        @Override
+        public int getScreenWidth() {
+            return screenWidth;
+        }
+
+        @Override
+        public int getScreenHeight() {
+            return screenHeight;
         }
     }
 
@@ -159,7 +188,7 @@ public class MestJeiPlugin implements IModPlugin {
      * error if nothing is available, otherwise call {@link CraftingHelper#performTransfer}.
      */
     private static final class MestCraftingTransferHandler<T extends CraftingTermMenu>
-            implements IRecipeTransferHandler<T, RecipeHolder<CraftingRecipe>> {
+            implements IRecipeTransferHandler<T, CraftingRecipe> {
         private final Class<T> menuClass;
         private final MenuType<T> menuType;
         private final IRecipeTransferHandlerHelper helper;
@@ -185,12 +214,12 @@ public class MestJeiPlugin implements IModPlugin {
         }
 
         @Override
-        public RecipeType<RecipeHolder<CraftingRecipe>> getRecipeType() {
+        public RecipeType<CraftingRecipe> getRecipeType() {
             return RecipeTypes.CRAFTING;
         }
 
         @Override
-        public IRecipeTransferError transferRecipe(T menu, RecipeHolder<CraftingRecipe> recipe,
+        public IRecipeTransferError transferRecipe(T menu, CraftingRecipe recipe,
                 IRecipeSlotsView slotsView, Player player, boolean maxTransfer, boolean doTransfer) {
             if (menu instanceof MESTMenu mestMenu
                     && (MestPullItemsSupport.shouldShowExtraButton()
@@ -199,7 +228,7 @@ public class MestJeiPlugin implements IModPlugin {
                 return encodingHandler.transferRecipe(
                         mestMenu, recipe, slotsView, player, maxTransfer, doTransfer);
             }
-            CraftingRecipe crafting = recipe.value();
+            CraftingRecipe crafting = recipe;
 
             if (crafting.getType() != net.minecraft.world.item.crafting.RecipeType.CRAFTING) {
                 return helper.createInternalError();
@@ -237,7 +266,7 @@ public class MestJeiPlugin implements IModPlugin {
                 return null;
             }
 
-            CraftingHelper.performTransfer(menu, recipe.id(), crafting, craftMissing);
+            CraftingHelper.performTransfer(menu, crafting, craftMissing);
             return null;
         }
     }
@@ -281,18 +310,9 @@ public class MestJeiPlugin implements IModPlugin {
                 return helper.createInternalError();
             }
 
-            RecipeHolder<?> holder = rawRecipe instanceof RecipeHolder<?> recipeHolder ? recipeHolder : null;
-            Recipe<?> recipe = holder != null ? holder.value() : null;
+            Recipe<?> recipe = rawRecipe instanceof Recipe<?> value ? value : null;
             var inputs = genericInputs(slotsView);
             var outputs = genericOutputs(slotsView);
-
-            if (UselessPatternBridge.isUselessEntry(rawRecipe)) {
-                if (doTransfer) {
-                    com.lhy.mest.compat.plus.PlusEncodingUpload.captureRecipeSearchKey(rawRecipe);
-                    return UselessPatternBridge.encode(menu, rawRecipe, inputs, outputs) ? null : helper.createInternalError();
-                }
-                return new EncodingTransferError(findCraftableSlots(menu, slotsView));
-            }
 
             var kind = MestEncodingHelper.classifyRecipe(recipe, false);
             switch (MestEncodingHelper.validate(kind, recipe, !inputs.isEmpty(), !outputs.isEmpty())) {
@@ -311,7 +331,7 @@ public class MestJeiPlugin implements IModPlugin {
                 MestEncodingHelper.encode(
                         menu,
                         kind,
-                        holder,
+                        recipe,
                         craftingIngredients(slotsView),
                         inputs,
                         outputs,
@@ -368,7 +388,7 @@ public class MestJeiPlugin implements IModPlugin {
             if (item != null && !item.isEmpty()) {
                 return GenericStack.fromItemStack(item);
             }
-            FluidStack fluid = ingredient.getCastIngredient(NeoForgeTypes.FLUID_STACK);
+            FluidStack fluid = ingredient.getCastIngredient(ForgeTypes.FLUID_STACK);
             if (fluid != null && !fluid.isEmpty()) {
                 AEFluidKey key = AEFluidKey.of(fluid);
                 return key == null ? null : new GenericStack(key, fluid.getAmount());
@@ -378,15 +398,12 @@ public class MestJeiPlugin implements IModPlugin {
 
         private static <T> GenericStack convertRegisteredIngredient(ITypedIngredient<T> ingredient) {
             try {
-                var converter = tamaized.ae2jeiintegration.api.integrations.jei.IngredientConverters
-                        .getConverter(ingredient.getType());
-                if (converter != null) {
-                    return converter.getStackFromIngredient(ingredient.getIngredient());
-                }
-            } catch (NoClassDefFoundError | RuntimeException ignored) {
-                // ae2-jei-integration or Applied Mekanistics may be absent.
+                // AE2 15 converts every ingredient type it (or an addon such as Applied
+                // Mekanistics) registered with its JEI integration.
+                return GenericEntryStackHelper.ingredientToStack(ingredient);
+            } catch (RuntimeException ignored) {
+                return null;
             }
-            return null;
         }
 
         private static List<IRecipeSlotView> findCraftableSlots(
@@ -439,7 +456,7 @@ public class MestJeiPlugin implements IModPlugin {
 
             @Override
             public void getTooltip(ITooltipBuilder tooltip) {
-                tooltip.addAll(TransferHelper.createEncodingTooltip(!craftableSlots.isEmpty(), true));
+                tooltip.addAll(TransferHelper.createEncodingTooltip(!craftableSlots.isEmpty()));
             }
         }
     }
@@ -558,7 +575,7 @@ public class MestJeiPlugin implements IModPlugin {
             if (!MestPullItemsSupport.shouldShowExtraButton() || allMissing) {
                 return false;
             }
-            RecipeHolder<CraftingRecipe> holder = craftingRecipe();
+            CraftingRecipe holder = craftingRecipe();
             if (holder == null) {
                 return false;
             }
@@ -570,7 +587,7 @@ public class MestJeiPlugin implements IModPlugin {
                 return false;
             }
             boolean craftMissing = Screen.hasControlDown();
-            CraftingHelper.performTransfer(menu, holder.id(), holder.value(), craftMissing);
+            CraftingHelper.performTransfer(menu, holder, craftMissing);
             Screen screen = Minecraft.getInstance().screen;
             if (screen != null) {
                 screen.onClose();
@@ -587,7 +604,7 @@ public class MestJeiPlugin implements IModPlugin {
             }
             if (missingSlots != null && missingSlots.totalSize() > 0) {
                 tooltip.addAll(TransferHelper.createCraftingTooltip(
-                        missingSlots, Screen.hasControlDown(), true));
+                        missingSlots, Screen.hasControlDown()));
                 return;
             }
             tooltip.add(ItemModText.MOVE_ITEMS.text());
@@ -601,7 +618,7 @@ public class MestJeiPlugin implements IModPlugin {
                 return;
             }
             var player = Minecraft.getInstance().player;
-            RecipeHolder<CraftingRecipe> holder = craftingRecipe();
+            CraftingRecipe holder = craftingRecipe();
             if (player == null || holder == null || !(player.containerMenu instanceof MESTMenu menu)) {
                 return;
             }
@@ -617,14 +634,9 @@ public class MestJeiPlugin implements IModPlugin {
             }
         }
 
-        @SuppressWarnings("unchecked")
-        private RecipeHolder<CraftingRecipe> craftingRecipe() {
+        private CraftingRecipe craftingRecipe() {
             Object recipe = recipeLayout.getRecipe();
-            if (recipe instanceof RecipeHolder<?> holder
-                    && holder.value() instanceof CraftingRecipe) {
-                return (RecipeHolder<CraftingRecipe>) holder;
-            }
-            return null;
+            return recipe instanceof CraftingRecipe crafting ? crafting : null;
         }
     }
 }

@@ -22,7 +22,7 @@ import net.minecraft.world.inventory.ClickType;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 
-import net.neoforged.neoforge.network.PacketDistributor;
+import com.lhy.mest.network.MestPackets;
 
 import appeng.api.crafting.PatternDetailsHelper;
 import appeng.api.behaviors.ContainerItemStrategies;
@@ -38,6 +38,8 @@ import appeng.api.storage.AEKeyFilter;
 import appeng.api.upgrades.IUpgradeableObject;
 import appeng.client.gui.AEBaseScreen;
 import appeng.client.gui.Icon;
+
+import com.lhy.mest.client.Ae2Icons;
 import appeng.client.gui.style.Blitter;
 import appeng.client.gui.me.common.RepoSlot;
 import appeng.client.gui.me.common.StackSizeRenderer;
@@ -45,7 +47,6 @@ import appeng.client.gui.style.ScreenStyle;
 import appeng.client.gui.widgets.AETextField;
 import appeng.client.gui.widgets.ActionButton;
 import appeng.client.gui.widgets.IconButton;
-import appeng.client.gui.widgets.KeyTypeSelectionButton;
 import appeng.client.gui.widgets.OpenGuideButton;
 import appeng.client.gui.widgets.SettingToggleButton;
 import appeng.client.gui.Tooltip;
@@ -55,10 +56,13 @@ import appeng.core.AEConfig;
 import appeng.core.localization.ButtonToolTips;
 import appeng.core.localization.GuiText;
 import appeng.core.localization.Tooltips;
-import appeng.core.network.ServerboundPacket;
-import appeng.core.network.bidirectional.ConfigValuePacket;
-import appeng.core.network.serverbound.InventoryActionPacket;
-import appeng.core.network.serverbound.SwitchGuisPacket;
+import appeng.api.features.HotkeyAction;
+import appeng.client.Hotkeys;
+import appeng.core.sync.network.NetworkHandler;
+import appeng.core.sync.packets.HotkeyPacket;
+import appeng.core.sync.packets.ConfigValuePacket;
+import appeng.core.sync.packets.InventoryActionPacket;
+import appeng.core.sync.packets.SwitchGuisPacket;
 import appeng.menu.me.crafting.CraftingStatusMenu;
 import appeng.helpers.InventoryAction;
 import appeng.items.storage.ViewCellItem;
@@ -67,10 +71,12 @@ import appeng.menu.me.common.GridInventoryEntry;
 import appeng.menu.slot.FakeSlot;
 import appeng.util.Platform;
 
-import de.mari_023.ae2wtlib.api.gui.AE2wtlibSlotSemantics;
-import de.mari_023.ae2wtlib.wct.ArmorSlot;
-import de.mari_023.ae2wtlib.api.terminal.IUniversalTerminalCapable;
-import de.mari_023.ae2wtlib.api.terminal.WTMenuHost;
+import de.mari_023.ae2wtlib.AE2wtlibSlotSemantics;
+import de.mari_023.ae2wtlib.terminal.ArmorSlot;
+import de.mari_023.ae2wtlib.wut.CycleTerminalButton;
+import de.mari_023.ae2wtlib.wut.IUniversalTerminalCapable;
+import de.mari_023.ae2wtlib.wut.WUTHandler;
+import de.mari_023.ae2wtlib.terminal.WTMenuHost;
 
 import com.lhy.mest.MESplicedterminal;
 import com.lhy.mest.client.PatternProviderClientHandler.Entry;
@@ -98,7 +104,7 @@ import com.lhy.mest.client.panel.HotkeysPanel;
 import com.lhy.mest.api.client.MestModuleContext;
 import com.lhy.mest.client.hotkey.HotkeyActions;
 import com.lhy.mest.client.hotkey.PanelHotkeys;
-import net.neoforged.fml.ModList;
+import net.minecraftforge.fml.ModList;
 import com.lhy.mest.integration.MestRecipeTransferContext;
 import com.lhy.mest.compat.plus.PlusScreenSupport;
 import com.lhy.mest.network.PatternProviderActionPacket;
@@ -122,7 +128,6 @@ public class MESTScreen extends AEBaseScreen<MESTMenu> implements IUniversalTerm
     private final PanelSideBar moreSettingsBar = new PanelSideBar();
     private ExtraChrome upgradeColumn;
     private ExtraSlotColumn viewCellColumn;
-    private final MestAddonUpgradeButtons addonUpgradeButtons = new MestAddonUpgradeButtons();
     private ToolbarIconButton viewCellsToggleBtn;
     private boolean viewCellsVisible = true;
     private ToolbarIconButton moreSettingsToggleBtn;
@@ -179,7 +184,7 @@ public class MESTScreen extends AEBaseScreen<MESTMenu> implements IUniversalTerm
         // AE2's MEStorageScreen. Doing this in init() would be too late: the server's first full
         // inventory update can arrive before init() runs and would be dropped (null client repo).
         this.meListPanel = new MEListPanel(getMenu());
-        getMenu().setGui(this::onMenuReceivedClientUpdate);
+        getMenu().setGui((manager, setting) -> onMenuReceivedClientUpdate());
         recipeTransfer.beginMenu(menu);
 
         this.searchField = widgets.addTextField("search");
@@ -196,8 +201,8 @@ public class MESTScreen extends AEBaseScreen<MESTMenu> implements IUniversalTerm
         addMeSideButton(new SettingToggleButton<>(Settings.VIEW_MODE,
                 cm.getSetting(Settings.VIEW_MODE), this::toggleServerSetting));
         if (getMenu().canConfigureTypeFilter()) {
-            addMeSideButton(KeyTypeSelectionButton.create(
-                    this, getMenu().getHost(), GuiText.ConfigureVisibleTypes.text()));
+            addMeSideButton(new SettingToggleButton<>(Settings.TYPE_FILTER,
+                    cm.getSetting(Settings.TYPE_FILTER), this::toggleServerSetting));
         }
         addMeSideButton(new SettingToggleButton<>(Settings.SORT_DIRECTION,
                 cm.getSetting(Settings.SORT_DIRECTION), this::toggleServerSetting));
@@ -211,9 +216,8 @@ public class MESTScreen extends AEBaseScreen<MESTMenu> implements IUniversalTerm
                 moreSettingsMessage(),
                 b -> toggleMoreSettings(),
                 () -> !moreSettingsVisible));
-        addonUpgradeButtons.install(this, meSideBar);
         if (getMenu().isWUT()) {
-            cycleTerminalBtn = cycleTerminalButton();
+            cycleTerminalBtn = new CycleTerminalButton(btn -> cycleTerminal());
             addMeSideButton(cycleTerminalBtn);
         }
     }
@@ -231,8 +235,7 @@ public class MESTScreen extends AEBaseScreen<MESTMenu> implements IUniversalTerm
     }
 
     private void showCraftingStatus() {
-        ServerboundPacket message = SwitchGuisPacket.openSubMenu(CraftingStatusMenu.TYPE);
-        PacketDistributor.sendToServer(message);
+        NetworkHandler.instance().sendToServer(SwitchGuisPacket.openSubMenu(CraftingStatusMenu.TYPE));
     }
 
     private void showSettings() {
@@ -357,7 +360,7 @@ public class MESTScreen extends AEBaseScreen<MESTMenu> implements IUniversalTerm
 
     private <SE extends Enum<SE>> void toggleServerSetting(SettingToggleButton<SE> btn, boolean backwards) {
         SE next = btn.getNextValue(backwards);
-        PacketDistributor.sendToServer(new ConfigValuePacket(btn.getSetting(), next));
+        NetworkHandler.instance().sendToServer(new ConfigValuePacket(btn.getSetting(), next));
         btn.set(next);
         if (meListPanel != null) {
             meListPanel.repo().updateView();
@@ -377,7 +380,6 @@ public class MESTScreen extends AEBaseScreen<MESTMenu> implements IUniversalTerm
         button.set(getMenu().getConfigManager().getSetting(button.getSetting()));
     }
 
-    @Override
     protected boolean shouldAddToolbar() {
         // We do not use AE2's fixed vertical toolbar; it is pinned to leftPos/topPos (0,0)
         // and would hang off the screen. The same buttons auto-attach to the spliced group.
@@ -459,7 +461,7 @@ public class MESTScreen extends AEBaseScreen<MESTMenu> implements IUniversalTerm
         if (providerSelectPanel != null) {
             providerSelectPanel.rebindSearchField(this);
         }
-        if (upgradeColumn == null && getMenu().getHost() instanceof IUpgradeableObject upgradeable) {
+        if (upgradeColumn == null && (Object) getMenu().getHost() instanceof IUpgradeableObject upgradeable) {
             List<Slot> upgradeSlots = new ArrayList<>();
             upgradeSlots.addAll(getMenu().getSlots(AE2wtlibSlotSemantics.SINGULARITY));
             upgradeSlots.addAll(getMenu().getSlots(SlotSemantics.UPGRADE));
@@ -536,9 +538,6 @@ public class MESTScreen extends AEBaseScreen<MESTMenu> implements IUniversalTerm
         attachMeSideBar();
         attachExtraSlotColumns();
         syncExternalModGuiMetrics();
-        if (ModList.get().isLoaded("clientsort")) {
-            com.lhy.mest.compat.ClientSortCompat.syncButtons(this);
-        }
         refreshRecipeTransferAvailability();
     }
 
@@ -556,7 +555,6 @@ public class MESTScreen extends AEBaseScreen<MESTMenu> implements IUniversalTerm
             moreSettingsBar.hide();
             return;
         }
-        addonUpgradeButtons.update(this);
         rebuildMoreSettingsModules();
         meSideBar.layoutAgainst(group.x(), group.y(), true);
         for (Button button : moreSettingsBar.buttons()) {
@@ -644,7 +642,7 @@ public class MESTScreen extends AEBaseScreen<MESTMenu> implements IUniversalTerm
             }
             case MORE_UNDO -> {
                 undoLayoutBtn = new ToolbarIconButton(
-                        Icon.BACK,
+                        Ae2Icons.BACK,
                         Component.translatable("gui.mesplicedterminal.undo_layout"),
                         b -> dock.undoLayout());
                 undoLayoutBtn.active = dock.canUndoLayout();
@@ -660,7 +658,7 @@ public class MESTScreen extends AEBaseScreen<MESTMenu> implements IUniversalTerm
                 }
                 ModulePanel panel = panelById(id);
                 yield panel == null
-                        ? new ToolbarIconButton(Icon.COG, Component.literal(id), b -> { })
+                        ? new ToolbarIconButton(Ae2Icons.COG, Component.literal(id), b -> { })
                         : new ModuleToggleButton(panel);
             }
         };
@@ -682,21 +680,30 @@ public class MESTScreen extends AEBaseScreen<MESTMenu> implements IUniversalTerm
                         + " created a panel with id " + panel.id());
             }
             panels.add(panel);
-            switch (panel) {
-                case CraftingPanel p -> craftingPanel = p;
-                case CraftingTerminalPanel p -> craftingTerminalPanel = p;
-                case PatternEncodingPanel p -> patternEncodingPanel = p;
-                case PatternAccessPanel p -> patternAccessPanel = p;
-                case PatternCachePanel p -> patternCachePanel = p;
-                case InventoryPanel p -> inventoryPanel = p;
-                case WirelessSettingsPanel p -> wirelessSettingsPanel = p;
-                case TrashPanel p -> trashPanel = p;
-                case ToolkitPanel p -> toolkitPanel = p;
-                case NetworkToolkitPanel p -> networkToolkitPanel = p;
-                case HotkeysPanel p -> hotkeysPanel = p;
-                case ProviderSelectPanel p -> providerSelectPanel = p;
-                default -> {
-                }
+            if (panel instanceof CraftingPanel p) {
+                craftingPanel = p;
+            } else if (panel instanceof CraftingTerminalPanel p) {
+                craftingTerminalPanel = p;
+            } else if (panel instanceof PatternEncodingPanel p) {
+                patternEncodingPanel = p;
+            } else if (panel instanceof PatternAccessPanel p) {
+                patternAccessPanel = p;
+            } else if (panel instanceof PatternCachePanel p) {
+                patternCachePanel = p;
+            } else if (panel instanceof InventoryPanel p) {
+                inventoryPanel = p;
+            } else if (panel instanceof WirelessSettingsPanel p) {
+                wirelessSettingsPanel = p;
+            } else if (panel instanceof TrashPanel p) {
+                trashPanel = p;
+            } else if (panel instanceof ToolkitPanel p) {
+                toolkitPanel = p;
+            } else if (panel instanceof NetworkToolkitPanel p) {
+                networkToolkitPanel = p;
+            } else if (panel instanceof HotkeysPanel p) {
+                hotkeysPanel = p;
+            } else if (panel instanceof ProviderSelectPanel p) {
+                providerSelectPanel = p;
             }
         }
         if (craftingTerminalPanel != null) {
@@ -1280,7 +1287,7 @@ public class MESTScreen extends AEBaseScreen<MESTMenu> implements IUniversalTerm
      * Preset cycle uses row 2, icons 10–12 of {@code layout_preset_icons.png} (16×16).
      */
     private final class CyclePresetButton extends ToolbarIconButton {
-        private static final ResourceLocation ICONS = ResourceLocation.fromNamespaceAndPath(
+        private static final ResourceLocation ICONS = new ResourceLocation(
                 MESplicedterminal.MODID, "textures/guis/layout_preset_icons.png");
         private static final int ICON_U0 = 144;
         private static final int ICON_V = 16;
@@ -1297,23 +1304,23 @@ public class MESTScreen extends AEBaseScreen<MESTMenu> implements IUniversalTerm
             }
             int yOffset = isHovered() ? 1 : 0;
             Icon bgIcon = isHovered()
-                    ? Icon.TOOLBAR_BUTTON_BACKGROUND_HOVER
-                    : isFocused() ? Icon.TOOLBAR_BUTTON_BACKGROUND_FOCUS : Icon.TOOLBAR_BUTTON_BACKGROUND;
+                    ? Ae2Icons.TOOLBAR_BUTTON_BACKGROUND_HOVER
+                    : isFocused() ? Ae2Icons.TOOLBAR_BUTTON_BACKGROUND_FOCUS : Icon.TOOLBAR_BUTTON_BACKGROUND;
             bgIcon.getBlitter()
                     .dest(getX() - 1, getY() + yOffset, 18, 20)
-                    .zOffset(2)
+
                     .blit(guiGraphics);
             int iconU = ICON_U0 + dock.activePreset() * ICON_SIZE;
             Blitter.texture(ICONS, 256, 256)
                     .src(iconU, ICON_V, ICON_SIZE, ICON_SIZE)
                     .dest(getX(), getY() + 1 + yOffset)
-                    .zOffset(3)
+
                     .blit(guiGraphics);
         }
     }
 
     private static final class ViewCellsToggleButton extends ToolbarIconButton {
-        private static final ResourceLocation STATES = ResourceLocation.fromNamespaceAndPath(
+        private static final ResourceLocation STATES = new ResourceLocation(
                 MESplicedterminal.MODID, "textures/guis/pattern_cache_states.png");
         private static final int ICON_U_VISIBLE = 144;
         private static final int ICON_U_HIDDEN = 160;
@@ -1335,17 +1342,17 @@ public class MESTScreen extends AEBaseScreen<MESTMenu> implements IUniversalTerm
             }
             int yOffset = isHovered() ? 1 : 0;
             Icon bgIcon = isHovered()
-                    ? Icon.TOOLBAR_BUTTON_BACKGROUND_HOVER
-                    : isFocused() ? Icon.TOOLBAR_BUTTON_BACKGROUND_FOCUS : Icon.TOOLBAR_BUTTON_BACKGROUND;
+                    ? Ae2Icons.TOOLBAR_BUTTON_BACKGROUND_HOVER
+                    : isFocused() ? Ae2Icons.TOOLBAR_BUTTON_BACKGROUND_FOCUS : Icon.TOOLBAR_BUTTON_BACKGROUND;
             bgIcon.getBlitter()
                     .dest(getX() - 1, getY() + yOffset, 18, 20)
-                    .zOffset(2)
+
                     .blit(guiGraphics);
             int iconU = viewCellsVisible.getAsBoolean() ? ICON_U_VISIBLE : ICON_U_HIDDEN;
             Blitter.texture(STATES, 256, 256)
                     .src(iconU, ICON_V, ICON_SIZE, ICON_SIZE)
                     .dest(getX(), getY() + 1 + yOffset)
-                    .zOffset(3)
+
                     .blit(guiGraphics);
         }
     }
@@ -1376,11 +1383,11 @@ public class MESTScreen extends AEBaseScreen<MESTMenu> implements IUniversalTerm
             int yOffset = isHovered() ? 1 : 0;
             if (!isDisableBackground()) {
                 Icon bgIcon = isHovered()
-                        ? Icon.TOOLBAR_BUTTON_BACKGROUND_HOVER
-                        : isFocused() ? Icon.TOOLBAR_BUTTON_BACKGROUND_FOCUS : Icon.TOOLBAR_BUTTON_BACKGROUND;
+                        ? Ae2Icons.TOOLBAR_BUTTON_BACKGROUND_HOVER
+                        : isFocused() ? Ae2Icons.TOOLBAR_BUTTON_BACKGROUND_FOCUS : Icon.TOOLBAR_BUTTON_BACKGROUND;
                 bgIcon.getBlitter()
                         .dest(getX() - 1, getY() + yOffset, 18, 20)
-                        .zOffset(2)
+
                         .blit(guiGraphics);
             }
             int ix = getX() + (16 - icon.width) / 2;
@@ -1389,7 +1396,7 @@ public class MESTScreen extends AEBaseScreen<MESTMenu> implements IUniversalTerm
             if (!active) {
                 blitter.opacity(0.5f);
             }
-            blitter.dest(ix, iy).zOffset(3).blit(guiGraphics);
+            blitter.dest(ix, iy).blit(guiGraphics);
         }
     }
 
@@ -1404,7 +1411,7 @@ public class MESTScreen extends AEBaseScreen<MESTMenu> implements IUniversalTerm
 
         AtlasToolbarButton(
                 int col, int row, Component tooltip, OnPress onPress, java.util.function.BooleanSupplier dimmed) {
-            super(Icon.COG, tooltip, onPress);
+            super(Ae2Icons.COG, tooltip, onPress);
             this.col = col;
             this.row = row;
             this.dimmed = dimmed;
@@ -1417,11 +1424,11 @@ public class MESTScreen extends AEBaseScreen<MESTMenu> implements IUniversalTerm
             }
             int yOffset = isHovered() ? 1 : 0;
             Icon bgIcon = isHovered()
-                    ? Icon.TOOLBAR_BUTTON_BACKGROUND_HOVER
-                    : isFocused() ? Icon.TOOLBAR_BUTTON_BACKGROUND_FOCUS : Icon.TOOLBAR_BUTTON_BACKGROUND;
+                    ? Ae2Icons.TOOLBAR_BUTTON_BACKGROUND_HOVER
+                    : isFocused() ? Ae2Icons.TOOLBAR_BUTTON_BACKGROUND_FOCUS : Icon.TOOLBAR_BUTTON_BACKGROUND;
             bgIcon.getBlitter()
                     .dest(getX() - 1, getY() + yOffset, 18, 20)
-                    .zOffset(2)
+
                     .blit(guiGraphics);
             MestGuiIcons.blit(
                     guiGraphics, col, row, getX(), getY() + 1 + yOffset, 16, 16, dimmed.getAsBoolean() ? 0.5F : 1.0F);
@@ -1446,11 +1453,11 @@ public class MESTScreen extends AEBaseScreen<MESTMenu> implements IUniversalTerm
             }
             int yOffset = isHovered() ? 1 : 0;
             Icon bgIcon = isHovered()
-                    ? Icon.TOOLBAR_BUTTON_BACKGROUND_HOVER
-                    : isFocused() ? Icon.TOOLBAR_BUTTON_BACKGROUND_FOCUS : Icon.TOOLBAR_BUTTON_BACKGROUND;
+                    ? Ae2Icons.TOOLBAR_BUTTON_BACKGROUND_HOVER
+                    : isFocused() ? Ae2Icons.TOOLBAR_BUTTON_BACKGROUND_FOCUS : Icon.TOOLBAR_BUTTON_BACKGROUND;
             bgIcon.getBlitter()
                     .dest(getX() - 1, getY() + yOffset, 18, 20)
-                    .zOffset(2)
+
                     .blit(guiGraphics);
             int ix = getX();
             int iy = getY() + 1 + yOffset;
@@ -1509,7 +1516,7 @@ public class MESTScreen extends AEBaseScreen<MESTMenu> implements IUniversalTerm
         private final int group;
 
         CombinedModuleButton(int group) {
-            super(Icon.COG, combinedModuleMessage(group), button -> toggleCombinedModule(group));
+            super(Ae2Icons.COG, combinedModuleMessage(group), button -> toggleCombinedModule(group));
             this.group = group;
         }
 
@@ -1522,11 +1529,11 @@ public class MESTScreen extends AEBaseScreen<MESTMenu> implements IUniversalTerm
             }
             int yOffset = isHovered() ? 1 : 0;
             Icon bgIcon = isHovered()
-                    ? Icon.TOOLBAR_BUTTON_BACKGROUND_HOVER
-                    : isFocused() ? Icon.TOOLBAR_BUTTON_BACKGROUND_FOCUS : Icon.TOOLBAR_BUTTON_BACKGROUND;
+                    ? Ae2Icons.TOOLBAR_BUTTON_BACKGROUND_HOVER
+                    : isFocused() ? Ae2Icons.TOOLBAR_BUTTON_BACKGROUND_FOCUS : Icon.TOOLBAR_BUTTON_BACKGROUND;
             bgIcon.getBlitter()
                     .dest(getX() - 1, getY() + yOffset, 18, 20)
-                    .zOffset(2)
+
                     .blit(guiGraphics);
             MestGuiIcons.blitCombined(guiGraphics, group, getX(), getY() + 1 + yOffset, 16, 16, shown ? 1.0F : 0.5F);
         }
@@ -1595,12 +1602,6 @@ public class MESTScreen extends AEBaseScreen<MESTMenu> implements IUniversalTerm
             }
             return;
         }
-        if (s instanceof ArmorSlot armorSlot && armorSlot.getItem().isEmpty() && armorSlot.isSlotEnabled()) {
-            armorSlot.icon().getBlitter()
-                    .dest(armorSlot.x, armorSlot.y)
-                    .opacity(armorSlot.getOpacityOfIcon())
-                    .blit(g);
-        }
         if (toolkitPanel != null && toolkitPanel.ownsSlot(s) && toolkitPanel.hideLiveItem(s)) {
             toolkitPanel.renderMemoryGhost(g, s);
             return;
@@ -1647,32 +1648,6 @@ public class MESTScreen extends AEBaseScreen<MESTMenu> implements IUniversalTerm
             return hoverTop.ownsSlot(slot) && super.isHovering(slot, mx, my);
         }
         return super.isHovering(slot, mx, my);
-    }
-
-    @Override
-    protected void renderSlotHighlight(GuiGraphics g, Slot slot, int mouseX, int mouseY, float partialTick) {
-        if (extraColumnOwns(slot)) {
-            g.pose().pushPose();
-            try {
-                g.pose().translate(0.0F, 0.0F, dock.anchoredChromeZ() + 200.0F);
-                super.renderSlotHighlight(g, slot, mouseX, mouseY, partialTick);
-            } finally {
-                g.pose().popPose();
-            }
-            return;
-        }
-        ModulePanel panel = dock.panelForSlot(slot);
-        if (panel == null) {
-            super.renderSlotHighlight(g, slot, mouseX, mouseY, partialTick);
-            return;
-        }
-        g.pose().pushPose();
-        try {
-            g.pose().translate(0.0F, 0.0F, dock.slotHighlightZ(panel));
-            super.renderSlotHighlight(g, slot, mouseX, mouseY, partialTick);
-        } finally {
-            g.pose().popPose();
-        }
     }
 
     private Slot panelSlotAt(ModulePanel panel, double mouseX, double mouseY) {
@@ -1784,7 +1759,7 @@ public class MESTScreen extends AEBaseScreen<MESTMenu> implements IUniversalTerm
                     switchToScreen(new MestSetProcessingPatternAmountScreen(
                             this,
                             currentStack,
-                            newStack -> PacketDistributor.sendToServer(new InventoryActionPacket(
+                            newStack -> NetworkHandler.instance().sendToServer(new InventoryActionPacket(
                                     InventoryAction.SET_FILTER,
                                     slot.index,
                                     GenericStack.wrapInItemStack(newStack)))));
@@ -2028,7 +2003,7 @@ public class MESTScreen extends AEBaseScreen<MESTMenu> implements IUniversalTerm
     }
 
     @Override
-    public boolean mouseScrolled(double mx, double my, double scrollX, double scrollY) {
+    public boolean mouseScrolled(double mx, double my, double scrollY) {
         ExtraChrome extra = extraColumnAt(mx, my);
         if (extra != null && extra.mouseScrolled(mx, my, scrollY)) {
             return true;
@@ -2051,7 +2026,8 @@ public class MESTScreen extends AEBaseScreen<MESTMenu> implements IUniversalTerm
         // Shift+scroll over an ME entry rolls single items in/out of the network instead of
         // scrolling the grid; this screen-level interaction runs before the panel's own scroll.
         if (target == meListPanel && meListPanel.inGrid(mx, my) && scrollY != 0
-                && hasShiftDown() && meListPanel.repoSlotAt(mx, my) instanceof RepoSlot repoSlot) {
+                && hasShiftDown() && meListPanel.repoSlotAt(mx, my) != null) {
+            RepoSlot repoSlot = meListPanel.repoSlotAt(mx, my);
             GridInventoryEntry entry = repoSlot.getEntry();
             long serial = entry != null ? entry.getSerial() : -1;
             InventoryAction action = toInventoryAction(MEListInteractionPolicy.scrollAction(scrollY));
@@ -2065,7 +2041,7 @@ public class MESTScreen extends AEBaseScreen<MESTMenu> implements IUniversalTerm
                 && target.mouseScrolled(mx, my, scrollY)) {
             return true;
         }
-        return dock.topPanelAt(mx, my) != null || super.mouseScrolled(mx, my, scrollX, scrollY);
+        return dock.topPanelAt(mx, my) != null || super.mouseScrolled(mx, my, scrollY);
     }
 
     public void updatePatternProviders(List<Entry> entries) {
@@ -2124,7 +2100,7 @@ public class MESTScreen extends AEBaseScreen<MESTMenu> implements IUniversalTerm
                 && PatternDetailsHelper.isEncodedPattern(slot.getItem())) {
             Entry target = patternAccessPanel.firstDisplayedProvider();
             if (target != null) {
-                PacketDistributor.sendToServer(new PatternProviderActionPacket(
+                MestPackets.sendToServer(new PatternProviderActionPacket(
                         getMenu().containerId,
                         target.epoch(),
                         target.providerId(),
@@ -2217,10 +2193,9 @@ public class MESTScreen extends AEBaseScreen<MESTMenu> implements IUniversalTerm
     private static InventoryAction toInventoryAction(MEListInteractionPolicy.ContainerAction action) {
         return switch (action) {
             case FILL_ONE -> InventoryAction.FILL_ITEM;
-            case FILL_ALL -> InventoryAction.FILL_ENTIRE_ITEM;
-            case FILL_ALL_TO_PLAYER -> InventoryAction.FILL_ENTIRE_ITEM_MOVE_TO_PLAYER;
-            case EMPTY_ONE -> InventoryAction.EMPTY_ITEM;
-            case EMPTY_ALL -> InventoryAction.EMPTY_ENTIRE_ITEM;
+            // AE2 15 only moves one container-load per click.
+            case FILL_ALL, FILL_ALL_TO_PLAYER -> InventoryAction.FILL_ITEM;
+            case EMPTY_ONE, EMPTY_ALL -> InventoryAction.EMPTY_ITEM;
         };
     }
 
@@ -2496,9 +2471,28 @@ public class MESTScreen extends AEBaseScreen<MESTMenu> implements IUniversalTerm
         CursorHelper.apply(dock.pointerCursor(mx, my));
     }
 
-    @Override
     public WTMenuHost getHost() {
         return (WTMenuHost) getMenu().getHost();
+    }
+
+    /** AE2WTLib 1.21's terminal-hotkey dispatch; AE2WTLib 15 leaves it to each screen. */
+    private boolean checkForTerminalKeys(int keyCode, int scanCode) {
+        var closingHotkey = Hotkeys.getHotkeyMapping(getHost().getCloseHotkey());
+        if (closingHotkey != null && closingHotkey.mapping().matches(keyCode, scanCode)) {
+            getHost().getPlayer().closeContainer();
+            return true;
+        }
+        for (String terminal : WUTHandler.terminalNames) {
+            String hotkeyId = "crafting".equals(terminal)
+                    ? HotkeyAction.WIRELESS_TERMINAL
+                    : "wireless_" + terminal + "_terminal";
+            var hotkey = Hotkeys.getHotkeyMapping(hotkeyId);
+            if (hotkey != null && hotkey.mapping().matches(keyCode, scanCode)) {
+                NetworkHandler.instance().sendToServer(new HotkeyPacket(hotkey));
+                return true;
+            }
+        }
+        return false;
     }
 
     @Override
