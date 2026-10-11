@@ -74,6 +74,21 @@ final class DevTestSteps {
                     mc -> DevTestJei.transferCraftingTable(mc, encoding)));
             steps.add(new MestDevTest.Step("verify pattern encoding", 5, null,
                     mc -> MestDevTest.runOnServer(mc, player -> DevTestJei.verifyTransfer(player, encoding))));
+            // MEST's own buttons beside each recipe in JEI's recipe screen.
+            for (String kind : List.of("CRAFT", "ENCODE")) {
+                var target = kind.equals("CRAFT") ? crafting : encoding;
+                steps.add(new MestDevTest.Step("clear grids for " + kind, 5, null,
+                        mc -> MestDevTest.runOnServer(mc, DevTestJei::clearGrids)));
+                steps.add(new MestDevTest.Step("jei recipes for " + kind, 25, "mest_12_jei_buttons",
+                        DevTestJei::showCraftingTableRecipes));
+                steps.add(new MestDevTest.Step("press jei " + kind, 20, null,
+                        mc -> DevTestJei.pressRecipeButton(mc, kind)));
+                steps.add(new MestDevTest.Step("verify jei " + kind, 5, null, mc -> {
+                    MestDevTest.log("{} back in terminal after jei {}: {}",
+                            mc.screen instanceof MESTScreen ? "PASS" : "FAIL", kind, mc.screen);
+                    MestDevTest.runOnServer(mc, player -> DevTestJei.verifyTransfer(player, target));
+                }));
+            }
         }
         steps.add(new MestDevTest.Step("open magnet settings", 30, "mest_08_magnet", mc -> {
             if (mc.screen instanceof MESTScreen screen) {

@@ -1312,7 +1312,7 @@ public final class DockManager {
                     renderShellRules(graphics, root, hoveredDivider);
                 }
                 if (contentEditModuleId == null) {
-                    ModulePanel.renderResizeGrip(graphics, root.bounds());
+                    ModulePanel.renderResizeGrip(graphics, gripBounds(root));
                 }
                 if (contentEditModuleId != null) {
                     ModulePanel editing = panelsByModuleId.get(contentEditModuleId);
@@ -1695,7 +1695,7 @@ public final class DockManager {
             return true;
         }
 
-        if (inRootResizeHandle(root.bounds(), mouseX, mouseY)
+        if (inRootResizeHandle(gripBounds(root), mouseX, mouseY)
                 && (editingLayout || canResizeNode(root.content()))) {
             mode = Mode.RESIZE_ROOT;
             activeRootId = root.rootId();
@@ -2974,7 +2974,7 @@ public final class DockManager {
         }
         boolean lockedAnchored = layoutLocked && !editingLayout && isAnchoredRoot(root);
         if (!lockedAnchored
-                && inRootResizeHandle(root.bounds(), mouseX, mouseY)
+                && inRootResizeHandle(gripBounds(root), mouseX, mouseY)
                 && (editingLayout || canResizeNode(root.content()))) {
             return CursorHelper.Shape.NWSE;
         }
@@ -3098,6 +3098,31 @@ public final class DockManager {
             }
         }
         return false;
+    }
+
+    /**
+     * The window's outer corner for its resize grip. When the bottom-right section hangs a
+     * scroller rail or tab strip outside the window, that rail reads as the window's edge, so the
+     * grip sits at the rail's corner instead of being tucked under it.
+     */
+    private DockRect gripBounds(FloatingRoot root) {
+        DockRect bounds = root.bounds();
+        for (LeafNode leaf : leavesOf(root)) {
+            var placement = projection.visibleLeaf(leaf.nodeId());
+            if (placement.isEmpty()) {
+                continue;
+            }
+            DockRect leafBounds = placement.get().bounds();
+            if (leafBounds.right() < bounds.right() || leafBounds.bottom() < bounds.bottom()) {
+                continue;
+            }
+            ModulePanel panel = panelsByModuleId.get(leaf.moduleId());
+            int outside = panel == null ? 0 : panel.outsideHitWidth();
+            if (outside > 0) {
+                return new DockRect(bounds.x(), bounds.y(), bounds.width() + outside, bounds.height());
+            }
+        }
+        return bounds;
     }
 
     private static DockRect hitBounds(DockRect bounds, ModulePanel panel) {

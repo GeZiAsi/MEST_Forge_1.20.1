@@ -34,14 +34,9 @@ import mezz.jei.api.recipe.transfer.IRecipeTransferError;
 import mezz.jei.api.recipe.transfer.IRecipeTransferHandler;
 import mezz.jei.api.recipe.transfer.IRecipeTransferHandlerHelper;
 import mezz.jei.api.recipe.transfer.IUniversalRecipeTransferHandler;
-import mezz.jei.api.gui.buttons.IButtonState;
-import mezz.jei.api.gui.buttons.IIconButtonController;
 import mezz.jei.api.gui.drawable.IDrawable;
 import mezz.jei.api.gui.handlers.IGuiProperties;
 import mezz.jei.api.gui.IRecipeLayoutDrawable;
-import mezz.jei.api.gui.inputs.IJeiUserInput;
-import mezz.jei.api.recipe.advanced.IRecipeButtonControllerFactory;
-import mezz.jei.api.registration.IAdvancedRegistration;
 import mezz.jei.api.registration.IGuiHandlerRegistration;
 import mezz.jei.api.registration.IRecipeTransferRegistration;
 import mezz.jei.api.runtime.IIngredientVisibility;
@@ -82,11 +77,6 @@ public class MestJeiPlugin implements IModPlugin {
     @Override
     public ResourceLocation getPluginUid() {
         return UID;
-    }
-
-    @Override
-    public void registerAdvanced(IAdvancedRegistration registration) {
-        registration.addRecipeButtonFactory(new PullItemsButtonFactory());
     }
 
     @Override
@@ -170,7 +160,6 @@ public class MestJeiPlugin implements IModPlugin {
 
     @Override
     public void registerRecipeTransferHandlers(IRecipeTransferRegistration registration) {
-        PullItemsButtonController.helper = registration.getTransferHelper();
         var encodingHandler = new MestPatternEncodingTransferHandler(
                 registration.getTransferHelper(),
                 registration.getJeiHelpers().getIngredientVisibility());
@@ -179,6 +168,7 @@ public class MestJeiPlugin implements IModPlugin {
                         registration.getTransferHelper(), encodingHandler),
                 RecipeTypes.CRAFTING);
         registration.addUniversalRecipeTransferHandler(encodingHandler);
+        MestJeiRecipeButtons.install(registration.getTransferHelper(), encodingHandler);
     }
 
     /**
@@ -244,7 +234,7 @@ public class MestJeiPlugin implements IModPlugin {
                     .hasControlDown();
             List<IRecipeSlotView> inputSlotViews = slotsView.getSlotViews(RecipeIngredientRole.INPUT);
             Map<Integer, net.minecraft.world.item.crafting.Ingredient> guiSlotToIngredient =
-                    helper.getGuiSlotIndexToIngredientMap(recipe);
+                    MestCraftingSlots.guiSlotToIngredient(recipe);
 
             CraftingTermMenu.MissingIngredientSlots missing =
                     menu.findMissingIngredients(guiSlotToIngredient);
@@ -388,11 +378,11 @@ public class MestJeiPlugin implements IModPlugin {
             if (converted != null) {
                 return converted;
             }
-            ItemStack item = ingredient.getCastIngredient(VanillaTypes.ITEM_STACK);
+            ItemStack item = ingredient.getIngredient(VanillaTypes.ITEM_STACK).orElse(null);
             if (item != null && !item.isEmpty()) {
                 return GenericStack.fromItemStack(item);
             }
-            FluidStack fluid = ingredient.getCastIngredient(ForgeTypes.FLUID_STACK);
+            FluidStack fluid = ingredient.getIngredient(ForgeTypes.FLUID_STACK).orElse(null);
             if (fluid != null && !fluid.isEmpty()) {
                 AEFluidKey key = AEFluidKey.of(fluid);
                 return key == null ? null : new GenericStack(key, fluid.getAmount());
@@ -491,156 +481,6 @@ public class MestJeiPlugin implements IModPlugin {
         @Override
         public void getTooltip(ITooltipBuilder tooltip) {
             tooltip.add(ItemModText.NO_ITEMS.text());
-        }
-    }
-
-    private static final class PullItemsButtonFactory implements IRecipeButtonControllerFactory {
-        @Override
-        public <T> IIconButtonController createButtonController(IRecipeLayoutDrawable<T> recipeLayout) {
-            return new PullItemsButtonController(recipeLayout);
-        }
-    }
-
-    private static final class PullItemsButtonController implements IIconButtonController {
-        static IRecipeTransferHandlerHelper helper;
-
-        private final IRecipeLayoutDrawable<?> recipeLayout;
-        private int buttonHighlight;
-        private boolean allMissing;
-        private CraftingTermMenu.MissingIngredientSlots missingSlots;
-
-        private final IDrawable icon = new IDrawable() {
-            @Override
-            public int getWidth() {
-                return 10;
-            }
-
-            @Override
-            public int getHeight() {
-                return 10;
-            }
-
-            @Override
-            public void draw(GuiGraphics graphics, int xOffset, int yOffset) {
-                if (buttonHighlight != 0 && !allMissing) {
-                    graphics.fill(xOffset - 1, yOffset - 1, xOffset + 11, yOffset + 11, buttonHighlight);
-                }
-                Icon.CRAFT_HAMMER.getBlitter().dest(xOffset, yOffset, 10, 10).blit(graphics);
-            }
-        };
-
-        private PullItemsButtonController(IRecipeLayoutDrawable<?> recipeLayout) {
-            this.recipeLayout = recipeLayout;
-        }
-
-        @Override
-        public void initState(IButtonState state) {
-            state.setIcon(icon);
-            updateState(state);
-        }
-
-        @Override
-        public void updateState(IButtonState state) {
-            boolean show = MestPullItemsSupport.shouldShowExtraButton() && craftingRecipe() != null;
-            refreshHighlights();
-            state.setVisible(show);
-            state.setActive(show && !allMissing);
-        }
-
-        @Override
-        public void drawExtras(GuiGraphics graphics, net.minecraft.client.renderer.Rect2i buttonArea,
-                int mouseX, int mouseY, float partialTicks) {
-            if (!MestPullItemsSupport.shouldShowExtraButton() || missingSlots == null) {
-                return;
-            }
-            if (mouseX < buttonArea.getX() || mouseX >= buttonArea.getX() + buttonArea.getWidth()
-                    || mouseY < buttonArea.getY() || mouseY >= buttonArea.getY() + buttonArea.getHeight()) {
-                return;
-            }
-            var recipeRect = recipeLayout.getRect();
-            var pose = graphics.pose();
-            pose.pushPose();
-            pose.translate(recipeRect.getX(), recipeRect.getY(), 0);
-            var slotViews = recipeLayout.getRecipeSlotsView().getSlotViews(RecipeIngredientRole.INPUT);
-            for (int i = 0; i < slotViews.size(); i++) {
-                boolean missing = missingSlots.missingSlots().contains(i);
-                boolean craftable = missingSlots.craftableSlots().contains(i);
-                if (!missing && !craftable) {
-                    continue;
-                }
-                slotViews.get(i).drawHighlight(graphics,
-                        missing ? TransferHelper.RED_SLOT_HIGHLIGHT_COLOR : TransferHelper.BLUE_SLOT_HIGHLIGHT_COLOR);
-            }
-            pose.popPose();
-        }
-
-        @Override
-        public boolean onPress(IJeiUserInput input) {
-            if (!MestPullItemsSupport.shouldShowExtraButton() || allMissing) {
-                return false;
-            }
-            CraftingRecipe holder = craftingRecipe();
-            if (holder == null) {
-                return false;
-            }
-            if (input.isSimulate()) {
-                return true;
-            }
-            var player = Minecraft.getInstance().player;
-            if (player == null || !(player.containerMenu instanceof MESTMenu menu)) {
-                return false;
-            }
-            boolean craftMissing = Screen.hasControlDown();
-            CraftingHelper.performTransfer(menu, holder, craftMissing);
-            Screen screen = Minecraft.getInstance().screen;
-            if (screen != null) {
-                screen.onClose();
-            }
-            return true;
-        }
-
-        @Override
-        public void getTooltips(ITooltipBuilder tooltip) {
-            if (allMissing) {
-                tooltip.add(ItemModText.MOVE_ITEMS.text());
-                tooltip.add(ItemModText.NO_ITEMS.text().withStyle(ChatFormatting.RED));
-                return;
-            }
-            if (missingSlots != null && missingSlots.totalSize() > 0) {
-                tooltip.addAll(TransferHelper.createCraftingTooltip(
-                        missingSlots, Screen.hasControlDown()));
-                return;
-            }
-            tooltip.add(ItemModText.MOVE_ITEMS.text());
-        }
-
-        private void refreshHighlights() {
-            buttonHighlight = 0;
-            allMissing = false;
-            missingSlots = null;
-            if (helper == null) {
-                return;
-            }
-            var player = Minecraft.getInstance().player;
-            CraftingRecipe holder = craftingRecipe();
-            if (player == null || holder == null || !(player.containerMenu instanceof MESTMenu menu)) {
-                return;
-            }
-            Map<Integer, net.minecraft.world.item.crafting.Ingredient> ingredients =
-                    helper.getGuiSlotIndexToIngredientMap(holder);
-            missingSlots = menu.findMissingIngredients(ingredients);
-            allMissing = !ingredients.isEmpty()
-                    && missingSlots.missingSlots().size() == ingredients.size();
-            if (!allMissing && missingSlots.totalSize() > 0) {
-                buttonHighlight = missingSlots.anyMissing()
-                        ? TransferHelper.ORANGE_PLUS_BUTTON_COLOR
-                        : TransferHelper.BLUE_PLUS_BUTTON_COLOR;
-            }
-        }
-
-        private CraftingRecipe craftingRecipe() {
-            Object recipe = recipeLayout.getRecipe();
-            return recipe instanceof CraftingRecipe crafting ? crafting : null;
         }
     }
 }
