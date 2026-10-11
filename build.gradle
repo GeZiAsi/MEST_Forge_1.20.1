@@ -15,6 +15,14 @@ base {
     archivesName = mod_id
 }
 
+// MIT requires the license with every copy: it is in README.md, so the jar carries the README.
+tasks.named('jar') {
+    from('README.md') {
+        into 'META-INF'
+        rename { 'README-mesplicedterminal.md' }
+    }
+}
+
 // Launchers such as PCL only show the file name for mods not listed on Modrinth/CurseForge, so
 // the released jar's name carries the mod name, game version and porter.
 tasks.matching { it.name == 'reobfJar' }.configureEach {
