@@ -21,7 +21,7 @@ A spliceable, drag-and-drop ME terminal that unifies AE2 wireless terminal modul
 This is the Forge 1.20.1 port for the GTL (GregTech Leisure) modpack.
 
 原作者 / Original: lhy512103 — ${mod_original_url}
-移植 / Port: 格兹亚西 — ${mod_source_url}
+移植 / Port: 格兹亚西
 '''
 
 [[dependencies.${mod_id}]]
