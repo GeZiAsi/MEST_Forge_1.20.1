@@ -236,9 +236,14 @@ var generateModMetadata = tasks.register("generateModMetadata", ProcessResources
             mod_id                 : mod_id,
             mod_name               : mod_name,
             mod_license            : mod_license,
+            mod_source_url         : mod_source_url,
+            mod_issues_url         : mod_issues_url,
+            mod_original_url       : mod_original_url,
             mod_version            : mod_version,
     ]
     inputs.properties replaceProperties
+    // The template carries Chinese author/description text.
+    filteringCharset = 'UTF-8'
     expand replaceProperties
     from "src/main/templates"
     into layout.buildDirectory.dir("generated/sources/modMetadata")
