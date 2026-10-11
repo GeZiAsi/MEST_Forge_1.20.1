@@ -31,8 +31,9 @@ class ResourceConsistencyTest {
 
     @Test
     void recipeAdvancementUsesTheLoadableDirectoryAndRewardsTheRecipe() throws IOException {
-        Path advancement = MOD_DATA.resolve(Path.of("advancements", "recipe", "spliced_terminal.json"));
-        Path obsoletePath = MOD_DATA.resolve(Path.of("advancement", "recipe", "spliced_terminal.json"));
+        // Minecraft 1.20.1 loads advancements from the plural "advancements/recipes" directory.
+        Path advancement = MOD_DATA.resolve(Path.of("advancements", "recipes", "spliced_terminal.json"));
+        Path obsoletePath = MOD_DATA.resolve(Path.of("advancements", "recipe", "spliced_terminal.json"));
 
         assertTrue(Files.isRegularFile(advancement));
         assertFalse(Files.exists(obsoletePath));
@@ -66,12 +67,12 @@ class ResourceConsistencyTest {
 
     @Test
     void recipeAndCuriosTagUseTheRegisteredItemId() throws IOException {
-        JsonObject recipe = readObject(MOD_DATA.resolve(Path.of("recipe", "spliced_terminal.json")));
-        JsonObject curios = readObject(RESOURCES.resolve(Path.of("data", "curios", "tags", "item", "curio.json")));
+        JsonObject recipe = readObject(MOD_DATA.resolve(Path.of("recipes", "spliced_terminal.json")));
+        JsonObject curios = readObject(RESOURCES.resolve(Path.of("data", "curios", "tags", "items", "curio.json")));
 
         assertEquals(
                 "mesplicedterminal:spliced_terminal",
-                recipe.getAsJsonObject("result").get("id").getAsString());
+                recipe.getAsJsonObject("result").get("item").getAsString());
         Set<String> taggedItems = curios.getAsJsonArray("values").asList().stream()
                 .map(element -> element.getAsString())
                 .collect(Collectors.toSet());

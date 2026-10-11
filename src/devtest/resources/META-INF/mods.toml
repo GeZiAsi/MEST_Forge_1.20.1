@@ -1,0 +1,16 @@
+modLoader="javafml"
+loaderVersion="[47,)"
+license="MIT"
+
+[[mods]]
+modId="mestdevtest"
+version="0.0.0"
+displayName="MEST dev test driver"
+description='''Development-only automation for the ME Spliced Terminal. Never shipped.'''
+
+[[dependencies.mestdevtest]]
+    modId="mesplicedterminal"
+    mandatory=true
+    versionRange="[0,)"
+    ordering="AFTER"
+    side="BOTH"

@@ -10,10 +10,8 @@ import java.util.List;
 
 import io.netty.buffer.Unpooled;
 
-import net.minecraft.core.RegistryAccess;
-import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.chat.Component;
-import net.neoforged.neoforge.network.connection.ConnectionType;
 
 import org.junit.jupiter.api.Test;
 
@@ -24,9 +22,9 @@ class ProviderPickerListPacketTest {
         var expected = new ProviderPickerListPacket(List.of(), List.of(), List.of(), false);
         var buf = buf();
         try {
-            ProviderPickerListPacket.STREAM_CODEC.encode(buf, expected);
+            expected.write(buf);
 
-            var decoded = ProviderPickerListPacket.STREAM_CODEC.decode(buf);
+            var decoded = ProviderPickerListPacket.read(buf);
 
             assertEquals(0, buf.readableBytes());
             assertTrue(decoded.ids().isEmpty());
@@ -48,7 +46,7 @@ class ProviderPickerListPacketTest {
         try {
             buf.writeVarInt(ProviderPickerListPacket.MAX_ROWS + 1);
 
-            var decoded = ProviderPickerListPacket.STREAM_CODEC.decode(buf);
+            var decoded = ProviderPickerListPacket.read(buf);
 
             // Oversized length must not pre-size an ArrayList; the decoder falls back to empty.
             assertTrue(decoded.ids().isEmpty());
@@ -64,7 +62,7 @@ class ProviderPickerListPacketTest {
         try {
             buf.writeVarInt(-1);
 
-            var decoded = ProviderPickerListPacket.STREAM_CODEC.decode(buf);
+            var decoded = ProviderPickerListPacket.read(buf);
 
             assertTrue(decoded.ids().isEmpty());
             assertEquals(0, buf.readableBytes());
@@ -81,7 +79,7 @@ class ProviderPickerListPacketTest {
             buf.writeBoolean(true);
             buf.writeByte(0);
 
-            var decoded = ProviderPickerListPacket.STREAM_CODEC.decode(buf);
+            var decoded = ProviderPickerListPacket.read(buf);
 
             assertTrue(decoded.ids().isEmpty());
             assertEquals(0, buf.readableBytes());
@@ -105,14 +103,13 @@ class ProviderPickerListPacketTest {
         var buf = buf();
         try {
             assertThrows(IllegalStateException.class,
-                    () -> ProviderPickerListPacket.STREAM_CODEC.encode(buf, huge));
+                    () -> huge.write(buf));
         } finally {
             buf.release();
         }
     }
 
-    private static RegistryFriendlyByteBuf buf() {
-        return new RegistryFriendlyByteBuf(
-                Unpooled.buffer(), RegistryAccess.EMPTY, ConnectionType.OTHER);
+    private static FriendlyByteBuf buf() {
+        return new FriendlyByteBuf(Unpooled.buffer());
     }
 }
