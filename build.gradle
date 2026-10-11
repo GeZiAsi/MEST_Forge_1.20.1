@@ -151,8 +151,8 @@ dependencies {
 
     // Optional integrations.
     modCompileOnly "maven.modrinth:extended-ae:${extendedae_version}"
-    modCompileOnly "mezz.jei:jei-${minecraft_version}-common-api:${jei_version}"
-    modCompileOnly "mezz.jei:jei-${minecraft_version}-forge-api:${jei_version}"
+    modCompileOnly "mezz.jei:jei-${minecraft_version}-common-api:${jei_api_version}"
+    modCompileOnly "mezz.jei:jei-${minecraft_version}-forge-api:${jei_api_version}"
     modCompileOnly "top.theillusivec4.curios:curios-forge:${curios_version}:api"
 
     // Development runtime: the AE2 part of the GTL stack.
@@ -166,7 +166,8 @@ dependencies {
     if (!gtlModsDir.isPresent()) {
         // @jar: the Gradle metadata's runtime variant is the unshaded jar, which lacks JEI's
         // bundled search library; the plain artifact is the shaded release jar.
-        modRuntimeOnly "mezz.jei:jei-${minecraft_version}-forge:${jei_version}@jar"
+        // -PmestDevtestJei=<version> runs another JEI, e.g. 15.20.x as some GTL packs ship.
+        modRuntimeOnly "mezz.jei:jei-${minecraft_version}-forge:${project.findProperty('mestDevtestJei') ?: jei_version}@jar"
     }
     modRuntimeOnly "top.theillusivec4.curios:curios-forge:${curios_version}"
 
@@ -185,7 +186,9 @@ if (gtlModsDir.isPresent()) {
     // mixin that its production class loading never applies, which fails against JEI 15.49.
     def wanted = ['gtlcore-', 'gtceu-', 'ldlib-forge-', 'ad_astra-forge-', 'botarium-forge-',
                   'resourcefulconfig-forge-', 'resourcefullib-forge-', 'gtmthings-', 'mae2-',
-                  'ftb-ultimine-forge-', 'ftb-library-forge-', 'ftb-chunks-forge-', 'ftb-teams-forge-']
+                  'ftb-ultimine-forge-', 'ftb-library-forge-', 'ftb-chunks-forge-', 'ftb-teams-forge-',
+                  // Not a gtlcore dependency: checks the terminal drops its sort button.
+                  'invtweaks-']
     repositories {
         exclusiveContent {
             forRepository {

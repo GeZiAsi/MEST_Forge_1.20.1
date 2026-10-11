@@ -182,5 +182,8 @@
   "gui.mesplicedterminal.float_window": "Float this window",
   "gui.mesplicedterminal.combined_module": "Combined module %s",
   "gui.mesplicedterminal.combine_window": "Make this window a combined module (click to pick 1, 2 or 3)",
-  "gui.mesplicedterminal.combine_window.set": "Combined module %s (click for the next slot, past 3 to release)"
+  "gui.mesplicedterminal.combine_window.set": "Combined module %s (click for the next slot, past 3 to release)",
+  "gui.mesplicedterminal.jei.craft_in_terminal": "Craft in the spliced terminal",
+  "gui.mesplicedterminal.jei.craft_in_terminal.ctrl": "§7Ctrl: request missing ingredients",
+  "gui.mesplicedterminal.jei.encode_pattern": "Write into pattern encoding"
 }

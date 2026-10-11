@@ -77,6 +77,58 @@ public class DevTestJei implements IModPlugin {
                 error == null ? "ok" : error.getType());
     }
 
+    /** Opens JEI's recipe screen for the crafting table, as pressing R on it would. */
+    static void showCraftingTableRecipes(Minecraft mc) {
+        if (runtime == null) {
+            MestDevTest.log("FAIL jei runtime missing");
+            return;
+        }
+        var focus = runtime.getJeiHelpers().getFocusFactory().createFocus(
+                mezz.jei.api.recipe.RecipeIngredientRole.OUTPUT,
+                mezz.jei.api.constants.VanillaTypes.ITEM_STACK, new ItemStack(Items.CRAFTING_TABLE));
+        runtime.getRecipesGui().show(focus);
+        MestDevTest.log("jei recipes screen: {}", mc.screen == null ? null : mc.screen.getClass().getName());
+    }
+
+    /** Clicks MEST's craft/encode button next to the first recipe, through Forge's screen click event. */
+    static void pressRecipeButton(Minecraft mc, String kind) {
+        try {
+            Class<?> owner = Class.forName("com.lhy.mest.integration.MestJeiRecipeButtons");
+            java.lang.reflect.Field field = owner.getDeclaredField("BUTTONS");
+            field.setAccessible(true);
+            for (Object button : (java.util.List<?>) field.get(null)) {
+                var kindMethod = button.getClass().getDeclaredMethod("kind");
+                var areaMethod = button.getClass().getDeclaredMethod("area");
+                kindMethod.setAccessible(true);
+                areaMethod.setAccessible(true);
+                if (!kindMethod.invoke(button).toString().equals(kind)) {
+                    continue;
+                }
+                var area = (net.minecraft.client.renderer.Rect2i) areaMethod.invoke(button);
+                double x = area.getX() + area.getWidth() / 2.0;
+                double y = area.getY() + area.getHeight() / 2.0;
+                boolean handled = net.minecraftforge.client.ForgeHooksClient.onScreenMouseClickedPre(mc.screen, x, y, 0);
+                MestDevTest.log("pressed jei {} button at {},{} handled={} -> screen {}", kind, x, y, handled,
+                        mc.screen == null ? null : mc.screen.getClass().getSimpleName());
+                return;
+            }
+            MestDevTest.log("FAIL no jei {} button on screen {}", kind, mc.screen);
+        } catch (ReflectiveOperationException e) {
+            MestDevTest.LOGGER.error("MEST-DEVTEST FAIL jei button", e);
+        }
+    }
+
+    /** Empties the crafting and pattern grids so a following transfer is checked from scratch. */
+    static void clearGrids(ServerPlayer player) {
+        if (player.containerMenu instanceof MESTMenu menu) {
+            var matrix = menu.getCraftingMatrix();
+            for (int i = 0; i < matrix.size(); i++) {
+                matrix.setItemDirect(i, ItemStack.EMPTY);
+            }
+            menu.clearPatternEncoding();
+        }
+    }
+
     /** Server-side check a few ticks after {@link #transferCraftingTable}. */
     static void verifyTransfer(ServerPlayer player, MestRecipeTransferContext.Target target) {
         if (!(player.containerMenu instanceof MESTMenu menu)) {

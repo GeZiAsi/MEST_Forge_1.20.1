@@ -112,6 +112,10 @@ public final class GtlCompat {
             wrapIfNotConsumed = lookup.findStatic(owner, "wrapIfNotConsumed",
                     MethodType.methodType(GenericStack.class, GenericStack.class, Set.class));
             return true;
+        } catch (ClassNotFoundException e) {
+            lookupFailed = true;
+            MESplicedterminal.LOGGER.info("MEST: this gtlcore has no virtual ingredient encoding ({})", e.getMessage());
+            return false;
         } catch (ReflectiveOperationException | LinkageError e) {
             disable("virtual ingredient encoding", e);
             return false;

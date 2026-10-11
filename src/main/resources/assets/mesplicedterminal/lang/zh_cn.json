@@ -182,5 +182,8 @@
   "gui.mesplicedterminal.float_window": "让该窗口悬浮",
   "gui.mesplicedterminal.combined_module": "组合模块 %s",
   "gui.mesplicedterminal.combine_window": "组成组合模块（点击依次选择 1、2、3）",
-  "gui.mesplicedterminal.combine_window.set": "组合模块 %s（点击切换到下一个，超过 3 则解除）"
+  "gui.mesplicedterminal.combine_window.set": "组合模块 %s（点击切换到下一个，超过 3 则解除）",
+  "gui.mesplicedterminal.jei.craft_in_terminal": "在拼接终端中合成",
+  "gui.mesplicedterminal.jei.craft_in_terminal.ctrl": "§7Ctrl：自动下单合成缺少的材料",
+  "gui.mesplicedterminal.jei.encode_pattern": "写入样板编码"
 }

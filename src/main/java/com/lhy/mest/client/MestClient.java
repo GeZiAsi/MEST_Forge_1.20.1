@@ -32,6 +32,32 @@ public final class MestClient {
             registerScreens();
             MestClientModules.collect();
         }));
+        net.minecraftforge.common.MinecraftForge.EVENT_BUS.addListener(
+                net.minecraftforge.eventbus.api.EventPriority.LOWEST, MestClient::dropForeignSortButtons);
+    }
+
+    /**
+     * Inventory sorters (Inventory Tweaks) add a sort button above the slot group they guess is the
+     * container. The terminal's slots are spread over movable panels, so the button lands on
+     * whatever panel is nearest, e.g. over the pattern-access search field. GTL's own config
+     * already turns them off for AE2 terminals; do the same for this one.
+     */
+    private static boolean loggedSortButton;
+
+    private static void dropForeignSortButtons(net.minecraftforge.client.event.ScreenEvent.Init.Post event) {
+        if (!(event.getScreen() instanceof MESTScreen) && !(event.getScreen() instanceof MestMagnetScreen)) {
+            return;
+        }
+        for (var listener : java.util.List.copyOf(event.getListenersList())) {
+            if (listener.getClass().getName().startsWith("invtweaks.")) {
+                event.removeListener(listener);
+                if (!loggedSortButton) {
+                    loggedSortButton = true;
+                    com.lhy.mest.MESplicedterminal.LOGGER.info("MEST: removed {} from the terminal screen",
+                            listener.getClass().getName());
+                }
+            }
+        }
     }
 
     private static void onRegisterKeyMappings(RegisterKeyMappingsEvent event) {

@@ -126,6 +126,10 @@ public final class GtlTerminalDisplay {
             large = lookup.findVirtual(text, "large", MethodType.methodType(String.class));
             full = lookup.findVirtual(text, "full", MethodType.methodType(String.class));
             available = true;
+        } catch (ClassNotFoundException e) {
+            // Older gtlcore (e.g. 1.2.2.x) has no precise terminal amounts at all.
+            MESplicedterminal.LOGGER.info("MEST: this gtlcore has no precise terminal amounts ({})", e.getMessage());
+            available = false;
         } catch (ReflectiveOperationException | LinkageError e) {
             MESplicedterminal.LOGGER.warn("MEST: gtlcore precise terminal amounts unavailable", e);
             available = false;
