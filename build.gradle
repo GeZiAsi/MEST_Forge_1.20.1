@@ -15,6 +15,12 @@ base {
     archivesName = mod_id
 }
 
+// Launchers such as PCL only show the file name for mods not listed on Modrinth/CurseForge, so
+// the released jar's name carries the mod name, game version and porter.
+tasks.matching { it.name == 'reobfJar' }.configureEach {
+    archiveFileName = "ME拼接终端-MEST-${mod_version}-GeZiAsi.jar"
+}
+
 // Development-only automation (src/devtest): drives a test world and screenshots the terminal.
 // It is never part of the published jar; only the runClientDevtest run enables it.
 sourceSets {

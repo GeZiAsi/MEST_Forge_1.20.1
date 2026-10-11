@@ -5,7 +5,7 @@
 > 本分支是 **ME 拼接终端（MEST）** 的 **Forge 1.20.1** 移植版，面向 **GTL（GregTech Leisure）** 整合包。
 >
 > - 原作者：**lhy512103** — 原版仓库（NeoForge 1.21.1）：<https://github.com/lhy512103/MEST>
-> - 移植作者：**格兹亚西**（移植版源码仓库尚未发布）
+> - 移植作者：**GeZiAsi**（格兹亚西）（移植版源码仓库尚未发布）
 > - 许可证：MIT（保留原作者版权声明，见 [LICENSE](LICENSE)）
 
 ## Forge 1.20.1 移植版说明
@@ -21,7 +21,7 @@
 | ExtendedAE（可选） | 1.20-1.4.x |
 | GTL / gtlcore（可选） | 1.2.2 及以上；精确数量显示需要 1.2.3 及以上 |
 
-把 `mesplicedterminal-*-forge1.20.1.jar` 放进整合包的 `mods` 目录即可。
+把 `ME拼接终端-MEST-*-forge1.20.1-GeZiAsi.jar` 放进整合包的 `mods` 目录即可（替换旧版本时先删掉旧的 `mesplicedterminal-*.jar`，两个同时存在会报模组重复）。
 
 ### 与原版的差异
 
@@ -47,7 +47,7 @@
 This branch ports **ME Spliced Terminal (MEST)** to **Forge 1.20.1** for the **GTL (GregTech Leisure)** modpack.
 
 - Original author: **lhy512103** — original NeoForge 1.21.1 repository: <https://github.com/lhy512103/MEST>
-- Port: **格兹亚西** (the port's own repository is not published yet)
+- Port: **GeZiAsi**（格兹亚西） (the port's own repository is not published yet)
 - License: MIT, original copyright kept (see [LICENSE](LICENSE)).
 
 Requires Forge 47.1+, AE2 15.x and AE2WTLib 15.x; JEI 15.19–15.49, ExtendedAE and gtlcore are optional.
