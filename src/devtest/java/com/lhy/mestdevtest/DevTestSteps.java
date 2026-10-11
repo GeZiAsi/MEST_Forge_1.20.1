@@ -24,6 +24,10 @@ final class DevTestSteps {
     }
 
     static void register(List<MestDevTest.Step> steps) {
+        if (System.getProperty("mest.devtest.layout") != null) {
+            registerSeededLayout(steps);
+            return;
+        }
         steps.add(new MestDevTest.Step("describe screen", 10, null, mc -> {
             if (mc.screen instanceof MESTScreen screen) {
                 var menu = screen.getMenu();
@@ -93,6 +97,29 @@ final class DevTestSteps {
             steps.add(new MestDevTest.Step("toggle " + id, 15, "mest_mod_" + id, mc -> runHotkey(mc, id)));
             steps.add(new MestDevTest.Step("restore " + id, 5, null, mc -> runHotkey(mc, id)));
         }
+        // Splicing: each module as a floating window, dragged onto the ME list's left edge.
+        for (String id : List.of("crafting", "crafting_terminal", "pattern_access", "pattern_cache",
+                "inventory", "wireless_settings", "toolkit", "hotkeys")) {
+            steps.add(new MestDevTest.Step("reset layout for " + id, 5, null, DevTestDock::resetLayout));
+            steps.add(new MestDevTest.Step("float " + id, 10, null, mc -> DevTestDock.showFloating(mc, id)));
+            steps.add(new MestDevTest.Step("splice " + id, 15, "mest_splice_" + id,
+                    mc -> DevTestDock.spliceOntoMeList(mc, id)));
+        }
+        // A smaller terminal: shrink the anchored window, then larger GUI scales.
+        steps.add(new MestDevTest.Step("reset layout", 5, null, DevTestDock::resetLayout));
+        steps.add(new MestDevTest.Step("shrink anchored window", 15, "mest_10_shrunk",
+                mc -> DevTestDock.resizeAnchored(mc, -150, -120)));
+        steps.add(new MestDevTest.Step("reset layout", 5, null, DevTestDock::resetLayout));
+        for (int scale : new int[] { 3, 4 }) {
+            steps.add(new MestDevTest.Step("gui scale " + scale, 20, "mest_11_gui" + scale, mc -> {
+                mc.options.guiScale().set(scale);
+                mc.resizeDisplay();
+            }));
+        }
+        steps.add(new MestDevTest.Step("gui scale 2", 10, null, mc -> {
+            mc.options.guiScale().set(2);
+            mc.resizeDisplay();
+        }));
         // Last, since it closes the terminal: the toolkit quick bars beside the vanilla hotbar.
         steps.add(new MestDevTest.Step("enable toolkit bars", 10, null,
                 mc -> MestDevTest.runOnServer(mc, DevTestSteps::stockToolkitBars)));
@@ -211,5 +238,49 @@ final class DevTestSteps {
         MestDevTest.log("toolkit bars enabled on server={} hasTerminal={} size={}",
                 com.lhy.mest.terminal.ToolkitBarState.isBarEnabled(player),
                 com.lhy.mest.terminal.ToolkitBarState.hasTerminal(player), toolkit.size());
+    }
+
+    /** With a player's layout files: every preset, then the trash dragged next to the inventory. */
+    private static void registerSeededLayout(List<MestDevTest.Step> steps) {
+        for (int preset = 0; preset < 3; preset++) {
+            int index = preset;
+            steps.add(new MestDevTest.Step("preset " + preset, 20, "mest_user_preset" + preset, mc -> {
+                if (mc.screen instanceof MESTScreen screen) {
+                    DevTestDock.dock(screen).selectPreset(index);
+                    DevTestDock.invoke(screen, "attachMeSideBar");
+                    DevTestDock.invoke(screen, "attachExtraSlotColumns");
+                    for (String id : List.of("me_list", "crafting_terminal", "pattern_encoding", "inventory",
+                            "wireless_settings", "toolkit", "trash")) {
+                        MestDevTest.log("preset {} {} anchored={}", index, DevTestDock.describe(screen, id),
+                                DevTestDock.dock(screen).anchoredGroupBounds());
+                    }
+                }
+            }));
+        }
+        steps.add(new MestDevTest.Step("preset 0 again", 10, null, mc -> {
+            if (mc.screen instanceof MESTScreen screen) {
+                DevTestDock.dock(screen).selectPreset(0);
+                screen.openTrash();
+            }
+        }));
+        steps.add(new MestDevTest.Step("trash next to inventory", 20, "mest_user_trash_spliced", mc -> {
+            if (!(mc.screen instanceof MESTScreen screen)) {
+                return;
+            }
+            var trash = DevTestDock.panel(screen, "trash");
+            var inventory = DevTestDock.panel(screen, "inventory");
+            MestDevTest.log("trash before: {}", DevTestDock.describe(screen, "trash"));
+            double tx = inventory.x + inventory.width - 2;
+            double ty = inventory.y + inventory.height / 2.0;
+            var top = DevTestDock.dock(screen).topPanelAt(tx, ty);
+            MestDevTest.log("top panel at drop point {},{}: {} / network toolkit {}", tx, ty,
+                    top == null ? null : top.id(), DevTestDock.describe(screen, "network_toolkit"));
+            DevTestDock.drag(screen, trash.x + 30, trash.y + 6,
+                    inventory.x + inventory.width - 2, inventory.y + inventory.height / 2.0);
+            boolean joined = DevTestDock.dock(screen).isJoinedWindow(trash)
+                    && !DevTestDock.dock(screen).isFloatingWindow(trash);
+            MestDevTest.log("{} trash spliced: {} / {}", joined ? "PASS" : "FAIL",
+                    DevTestDock.describe(screen, "trash"), DevTestDock.describe(screen, "inventory"));
+        }));
     }
 }

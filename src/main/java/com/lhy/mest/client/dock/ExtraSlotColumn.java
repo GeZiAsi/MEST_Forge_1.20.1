@@ -9,23 +9,23 @@ import net.minecraft.client.renderer.Rect2i;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.inventory.Slot;
 
-import appeng.client.gui.style.Blitter;
 import appeng.menu.slot.AppEngSlot;
 
 /**
- * AE2 {@link appeng.client.gui.widgets.UpgradesPanel} chrome, hung off the spliced group like
+ * AE2 {@link appeng.client.gui.widgets.UpgradesPanel}-style column, hung off the spliced group like
  * {@link PanelSideBar}. Not a dock module.
  *
- * <p>{@code extra_panels.png}'s slot well starts at texture (1, 6), so items sit at panel
+ * <p>The upgrade-background slot well starts at the piece's left edge, so items sit at panel
  * {@code x + 1} like vanilla — not at {@code x + PADDING + 1}.
  */
 public class ExtraSlotColumn implements ExtraChrome {
     private static final int SLOT = 18;
     private static final int PADDING = 5;
     private static final int MAX_ROWS = 8;
-    private static final int SLOT_OUTLINE = 0xFFF2F2F2;
-    private static final Blitter BACKGROUND = Blitter.texture("guis/extra_panels.png", 128, 128);
-    private static final Blitter INNER_CORNER = BACKGROUND.copy().src(12, 33, SLOT, SLOT);
+    /** Right chrome of an upgrade-background piece beyond its 18px slot well. */
+    private static final int RIGHT_CHROME = 5;
+    /** Top piece's 5px above the first well plus the bottom piece's 7px below the last. */
+    private static final int VERTICAL_CHROME = 12;
 
     private final List<Slot> slots;
     private final Supplier<List<Component>> tooltipSupplier;
@@ -88,8 +88,8 @@ public class ExtraSlotColumn implements ExtraChrome {
         }
         int slotCount = enabledSlotCount();
         int rows = Math.max(1, Math.min(MAX_ROWS, slotCount));
-        int width = 2 * PADDING + columns() * SLOT;
-        int height = 2 * PADDING + rows * SLOT;
+        int width = columns() * SLOT + RIGHT_CHROME;
+        int height = rows * SLOT + VERTICAL_CHROME;
         bounds = new Rect2i(attachX, attachY, width, height);
         placeSlots();
     }
@@ -107,24 +107,20 @@ public class ExtraSlotColumn implements ExtraChrome {
         if (!isVisible() || slotCount <= 0) {
             return;
         }
-        int slotOriginX = bounds.getX() + PADDING;
-        int slotOriginY = bounds.getY() + PADDING;
-        for (int i = 0; i < slotCount; i++) {
-            int row = i % MAX_ROWS;
-            int col = i / MAX_ROWS;
-            int x = slotOriginX + col * SLOT;
-            int y = slotOriginY + row * SLOT;
-            boolean lastSlot = i + 1 >= slotCount;
-            boolean lastRow = row + 1 >= MAX_ROWS;
-            drawSlotChrome(g, x, y, col == 0, row == 0, i >= slotCount - MAX_ROWS, lastRow || lastSlot);
-            if (col > 0 && lastSlot && !lastRow) {
-                INNER_CORNER.dest(x, y + SLOT).blit(g);
+        // AE2 15's extra_panels.png has a different layout from AE2 19's, so the column is built
+        // from the same AE2WTLib pieces as the upgrade column next to it. Each piece is open on
+        // the left, so a following column overlaps the previous one's right edge and joins it.
+        UpgradeBackground bg = UpgradeBackground.get(false);
+        for (int col = 0; col < columns(); col++) {
+            int count = Math.min(MAX_ROWS, slotCount - col * MAX_ROWS);
+            int x = bounds.getX() + col * SLOT;
+            int slotOriginY = bounds.getY() + PADDING;
+            bg.top().getBlitter().dest(x, bounds.getY()).blit(g);
+            for (int row = 1; row < count - 1; row++) {
+                bg.middle().getBlitter().dest(x, slotOriginY + row * SLOT).blit(g);
             }
+            bg.bottom().getBlitter().dest(x, slotOriginY + (count - 1) * SLOT).blit(g);
         }
-        g.hLine(slotOriginX - 4, slotOriginX + 11, slotOriginY, SLOT_OUTLINE);
-        g.hLine(slotOriginX - 4, slotOriginX + 11, slotOriginY + SLOT * Math.min(MAX_ROWS, slotCount) - 1, SLOT_OUTLINE);
-        g.vLine(slotOriginX - 5, slotOriginY - 1, slotOriginY + SLOT * Math.min(MAX_ROWS, slotCount), SLOT_OUTLINE);
-        g.vLine(slotOriginX + 12, slotOriginY - 1, slotOriginY + SLOT * Math.min(MAX_ROWS, slotCount), SLOT_OUTLINE);
     }
 
     public void renderSlots(GuiGraphics g, ModulePanel.PanelSlotRenderer renderer) {
@@ -198,32 +194,5 @@ public class ExtraSlotColumn implements ExtraChrome {
             }
         }
         return count;
-    }
-
-    private static void drawSlotChrome(GuiGraphics g, int x, int y,
-            boolean borderLeft, boolean borderTop, boolean borderRight, boolean borderBottom) {
-        int srcX = PADDING;
-        int srcY = PADDING;
-        int srcWidth = SLOT;
-        int srcHeight = SLOT;
-        int destX = x;
-        int destY = y;
-        if (borderLeft) {
-            destX -= PADDING;
-            srcX = 0;
-            srcWidth += PADDING;
-        }
-        if (borderRight) {
-            srcWidth += PADDING;
-        }
-        if (borderTop) {
-            destY -= PADDING;
-            srcY = 0;
-            srcHeight += PADDING;
-        }
-        if (borderBottom) {
-            srcHeight += PADDING + 2;
-        }
-        BACKGROUND.src(srcX, srcY, srcWidth, srcHeight).dest(destX, destY).blit(g);
     }
 }

@@ -29,7 +29,7 @@ public final class LayoutEngine {
         var builder = new ProjectionBuilder();
 
         for (FloatingRoot root : workspace.roots()) {
-            DockSize contentMinimum = measure(workspace, root.content(), builder.minimumSizes);
+            DockSize contentMinimum = measure(workspace, root.content(), true, builder.minimumSizes);
             DockSize rootMinimum = contentMinimum.isEmpty()
                     ? DockSize.ZERO
                     : new DockSize(
@@ -40,7 +40,7 @@ public final class LayoutEngine {
             builder.roots.add(new LayoutProjection.RootPlacement(
                     root.rootId(), root.bounds(), contentBounds, rootMinimum, effectivelyVisible));
             if (effectivelyVisible) {
-                desiredMeasure(workspace, root.content(), builder.desiredSizes);
+                desiredMeasure(workspace, root.content(), true, builder.desiredSizes);
                 arrangeShell(root.content(), contentBounds, builder);
             }
         }
@@ -48,19 +48,24 @@ public final class LayoutEngine {
         return builder.build();
     }
 
+    /** @param atBottom whether the node's lower edge is its window's bottom edge */
     private DockSize measure(
             DockWorkspace workspace,
             LayoutNode node,
+            boolean atBottom,
             Map<String, DockSize> measurements) {
         DockSize result;
         if (node instanceof LeafNode leaf) {
             result = workspace.policyFor(leaf.moduleId()).visible()
-                    ? catalog.metrics(leaf.moduleId()).minimumSize()
+                    ? leafMinimum(leaf, atBottom)
                     : DockSize.ZERO;
         } else {
             var split = (SplitNode) node;
-            DockSize first = measure(workspace, split.first(), measurements);
-            DockSize second = measure(workspace, split.second(), measurements);
+            boolean stacked = split.axis() == DockAxis.VERTICAL;
+            // Measured second first: when it is empty, the first child is the one on the bottom.
+            DockSize second = measure(workspace, split.second(), atBottom, measurements);
+            DockSize first = measure(workspace, split.first(),
+                    atBottom && (!stacked || second.isEmpty()), measurements);
             if (first.isEmpty()) {
                 result = second;
             } else if (second.isEmpty()) {
@@ -88,13 +93,14 @@ public final class LayoutEngine {
     private DockSize desiredMeasure(
             DockWorkspace workspace,
             LayoutNode node,
+            boolean atBottom,
             Map<String, DockSize> measurements) {
         DockSize result;
         if (node instanceof LeafNode leaf) {
             if (!workspace.policyFor(leaf.moduleId()).visible()) {
                 result = DockSize.ZERO;
             } else {
-                DockSize minimum = catalog.metrics(leaf.moduleId()).minimumSize();
+                DockSize minimum = leafMinimum(leaf, atBottom);
                 DockSize desired = desiredSize(leaf, workspace);
                 result = new DockSize(
                         Math.max(minimum.width(), desired.width()),
@@ -102,8 +108,10 @@ public final class LayoutEngine {
             }
         } else {
             var split = (SplitNode) node;
-            DockSize first = desiredMeasure(workspace, split.first(), measurements);
-            DockSize second = desiredMeasure(workspace, split.second(), measurements);
+            boolean stacked = split.axis() == DockAxis.VERTICAL;
+            DockSize second = desiredMeasure(workspace, split.second(), atBottom, measurements);
+            DockSize first = desiredMeasure(workspace, split.first(),
+                    atBottom && (!stacked || second.isEmpty()), measurements);
             if (first.isEmpty()) {
                 result = second;
             } else if (second.isEmpty()) {
@@ -237,7 +245,15 @@ public final class LayoutEngine {
 
     /** Preferred occupied size of a subtree, used when the workspace fits roots to their content. */
     public DockSize preferredSize(DockWorkspace workspace, LayoutNode node) {
-        return desiredMeasure(workspace, node, new LinkedHashMap<>());
+        return desiredMeasure(workspace, node, true, new LinkedHashMap<>());
+    }
+
+    private DockSize leafMinimum(LeafNode leaf, boolean atBottom) {
+        DockSize minimum = catalog.metrics(leaf.moduleId()).minimumSize();
+        if (!atBottom || style.bottomLeafPadding() == 0 || minimum.isEmpty()) {
+            return minimum;
+        }
+        return new DockSize(minimum.width(), add(minimum.height(), style.bottomLeafPadding()));
     }
 
     private DockSize desiredSize(LeafNode leaf, DockWorkspace workspace) {

@@ -28,8 +28,41 @@ public final class GuiSprites {
 
     /** AE2's vertical toolbar background, stretched with a 2px top and 4px bottom border. */
     public static void verticalButtonsBackground(GuiGraphics g, int x, int y, int width, int height) {
-        g.blitNineSliced(VERTICAL_BUTTONS_BG, x, y, width, height, 0, 2, 0, 4,
-                VERTICAL_BUTTONS_BG_WIDTH, VERTICAL_BUTTONS_BG_HEIGHT, 0, 0);
+        // Not GuiGraphics.blitNineSliced: in 1.20.1 it assumes a 256×256 texture, which samples
+        // only the top rows of this 21×26 one and tiles them into dark/white stripes.
+        nineSlice(g, VERTICAL_BUTTONS_BG, VERTICAL_BUTTONS_BG_WIDTH, VERTICAL_BUTTONS_BG_HEIGHT,
+                x, y, width, height, 0, 2, 0, 4);
+    }
+
+    /**
+     * Nine-slice of a whole texture of any size: corners at native size, edges and centre
+     * stretched. The artwork here has flat edges and centre, so stretching matches 1.21's sprites.
+     */
+    static void nineSlice(GuiGraphics g, ResourceLocation texture, int texW, int texH,
+            int x, int y, int width, int height, int left, int top, int right, int bottom) {
+        if (width <= 0 || height <= 0) {
+            return;
+        }
+        left = Math.min(left, width / 2);
+        right = Math.min(right, width - left);
+        top = Math.min(top, height / 2);
+        bottom = Math.min(bottom, height - top);
+        int[] dx = { x, x + left, x + width - right };
+        int[] dw = { left, width - left - right, right };
+        int[] su = { 0, left, texW - right };
+        int[] sw = { left, texW - left - right, right };
+        int[] dy = { y, y + top, y + height - bottom };
+        int[] dh = { top, height - top - bottom, bottom };
+        int[] sv = { 0, top, texH - bottom };
+        int[] sh = { top, texH - top - bottom, bottom };
+        for (int row = 0; row < 3; row++) {
+            for (int col = 0; col < 3; col++) {
+                if (dw[col] > 0 && dh[row] > 0 && sw[col] > 0 && sh[row] > 0) {
+                    g.blit(texture, dx[col], dy[row], dw[col], dh[row], su[col], sv[row], sw[col], sh[row],
+                            texW, texH);
+                }
+            }
+        }
     }
 
     /** AE2's small scrollbar handle at native size. */

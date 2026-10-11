@@ -98,7 +98,7 @@ public final class DockManager {
     private int anchoredChromeLayer;
 
     private static final LayoutStyle LAYOUT_STYLE =
-            new LayoutStyle(DockInsets.NONE, DIVIDER_THICKNESS);
+            new LayoutStyle(DockInsets.NONE, DIVIDER_THICKNESS, ModulePanel.CONTENT_PADDING);
     private static final boolean DEBUG_DOCK_TIMING = Boolean.getBoolean("mest.debugDockTiming");
 
     private final List<ModulePanel> panels = new ArrayList<>();
@@ -2357,8 +2357,10 @@ public final class DockManager {
         int maxBottom = Math.max(minY + 1, screenHeight - (editingLayout ? editorInsetBottom : 0));
         int canvasWidth = Math.max(1, maxRight - minX);
         int canvasHeight = Math.max(1, maxBottom - minY);
-        int width = Math.min(canvasWidth, Math.max(bounds.width(), minimum.width()));
-        int height = Math.min(canvasHeight, Math.max(bounds.height(), minimum.height()));
+        // Never below the content minimum, even past the canvas: squeezing fixed-size sections
+        // under their minimum draws their slots across the frame and over each other.
+        int width = Math.max(minimum.width(), Math.min(canvasWidth, bounds.width()));
+        int height = Math.max(minimum.height(), Math.min(canvasHeight, bounds.height()));
         width = Math.max(1, width);
         height = Math.max(1, height);
         int maxX = Math.max(minX, maxRight - width);
@@ -2570,7 +2572,7 @@ public final class DockManager {
     }
 
     private void updateDropCandidate(double mouseX, double mouseY) {
-        FloatingRoot targetRoot = topRootAt(mouseX, mouseY, activeRootId);
+        FloatingRoot targetRoot = topSpliceTargetAt(mouseX, mouseY, activeRootId);
         if (targetRoot == null || (layoutLocked && !editingLayout && isAnchoredRoot(targetRoot))) {
             dropCandidate = null;
             dragHoverBounds = null;
@@ -2633,6 +2635,31 @@ public final class DockManager {
             projection.visibleLeaf(leaf.nodeId())
                     .ifPresent(visible -> restore.put(leaf.nodeId(), visible.bounds().size()));
         }
+        DockAxis axis = candidate.edge().axis();
+        DockSize draggedNeed = layoutEngine.preferredSize(workspace, dragged);
+        LeafNode targetLeaf = LayoutTrees.leaves(targetViewportRoot.content()).stream()
+                .filter(leaf -> leaf.nodeId().equals(candidate.targetNodeId()))
+                .findFirst()
+                .orElse(null);
+        int targetNatural = targetLeaf == null ? targetExtent
+                : axis.extent(catalog.metrics(targetLeaf.moduleId()).defaultSize());
+        // Room left over inside the target section (a fixed-size panel stretched across a wide
+        // window): split that section instead of growing the window around the dropped module.
+        boolean fitsInside = targetLeaf != null
+                && targetNatural + DIVIDER_THICKNESS + axis.extent(draggedNeed) <= targetExtent
+                && axis.crossExtent(draggedNeed) <= axis.crossExtent(targetBounds.size());
+        if (fitsInside) {
+            int draggedShare = axis.extent(draggedNeed);
+            int targetShare = targetExtent - DIVIDER_THICKNESS - draggedShare;
+            restore.put(candidate.targetNodeId(), axis == DockAxis.HORIZONTAL
+                    ? new DockSize(targetShare, targetBounds.height())
+                    : new DockSize(targetBounds.width(), targetShare));
+            for (LeafNode leaf : LayoutTrees.leaves(dragged)) {
+                restore.remove(leaf.nodeId());
+            }
+            double fraction = (double) draggedShare / Math.max(1, draggedShare + targetShare);
+            ratio = candidate.edge().draggedFirst() ? fraction : 1.0 - fraction;
+        }
         DockWorkspace joined = editor.insertSplit(
                 workspace.withRestoreSizes(restore),
                 dragged.nodeId(),
@@ -2641,6 +2668,12 @@ public final class DockManager {
                 splitNodeId,
                 ratio);
         String joinedRootId = rootContainingNode(joined, splitNodeId).rootId();
+        if (fitsInside) {
+            joined = editor.setRootBounds(joined, joinedRootId, targetViewportRoot.bounds());
+            joined = editor.raiseRoot(joined, joinedRootId);
+            replaceWorkspace(joined, true);
+            return;
+        }
         DockRect expandedBounds = expandedDockBounds(
                 targetViewportRoot.bounds(), draggedRoot.bounds(), candidate.edge());
         LayoutNode joinedContent = rootContainingNode(joined, splitNodeId).content();
@@ -2881,6 +2914,29 @@ public final class DockManager {
             if (contains(root.bounds(), mouseX, mouseY) || rootOutsideHit(root, mouseX, mouseY)) {
                 return root;
             }
+        }
+        return null;
+    }
+
+    /**
+     * Like {@link #topRootAt}, but looks through windows that can never take a splice (the pinned
+     * network-tool panel) so they do not block docking onto the window underneath them.
+     */
+    private FloatingRoot topSpliceTargetAt(double mouseX, double mouseY, String excludedRootId) {
+        List<FloatingRoot> order = paintOrderRoots();
+        for (int i = order.size() - 1; i >= 0; i--) {
+            FloatingRoot root = order.get(i);
+            if (root.rootId().equals(excludedRootId) || !rootEffectivelyVisible(root.rootId())) {
+                continue;
+            }
+            if (!contains(root.bounds(), mouseX, mouseY) && !rootOutsideHit(root, mouseX, mouseY)) {
+                continue;
+            }
+            LeafNode leaf = leafNodeAt(root, mouseX, mouseY);
+            if (leaf != null && !moduleCanSplice(leaf.moduleId())) {
+                continue;
+            }
+            return root;
         }
         return null;
     }
