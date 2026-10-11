@@ -13,14 +13,6 @@ concurrency:
 
 jobs:
   build:
-    strategy:
-      fail-fast: false
-      matrix:
-        viewer:
-          - { name: jei-only, flags: "-PmestRunJei=true -PmestRunEmi=false" }
-          - { name: jei-emi, flags: "-PmestRunJei=true -PmestRunEmi=true" }
-          - { name: none, flags: "-PmestRunJei=false -PmestRunEmi=false" }
-          - { name: emi-only, flags: "-PmestRunJei=false -PmestRunEmi=true" }
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
@@ -31,10 +23,11 @@ jobs:
       - name: Validate Gradle wrapper
         uses: gradle/actions/wrapper-validation@v4
 
-      - name: Setup JDK 21
+      # Forge 1.20.1 targets Java 17.
+      - name: Setup JDK 17
         uses: actions/setup-java@v4
         with:
-          java-version: '21'
+          java-version: '17'
           distribution: 'temurin'
 
       - name: Setup Gradle
@@ -43,9 +36,6 @@ jobs:
       - name: Make Gradle wrapper executable
         run: chmod +x ./gradlew
 
-      - name: Check viewer launch declarations (${{ matrix.viewer.name }})
-        run: ./gradlew checkViewerLaunchClasspaths ${{ matrix.viewer.flags }} --no-daemon --stacktrace
-
       - name: Build with Gradle
         run: ./gradlew build --no-daemon --stacktrace
 
@@ -53,7 +43,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: mesplicedterminal-${{ github.sha }}-${{ matrix.viewer.name }}
+          name: mest-forge-1.20.1-${{ github.sha }}
           path: |
             build/libs/*.jar
             build/reports/tests/test/**
