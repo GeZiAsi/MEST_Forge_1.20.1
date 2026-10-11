@@ -28,6 +28,7 @@ import appeng.menu.slot.FakeSlot;
 import appeng.parts.encoding.EncodingMode;
 import appeng.util.CraftingRecipeUtil;
 
+import com.lhy.mest.compat.gtl.GtlCompat;
 import com.lhy.mest.terminal.MESTMenu;
 
 /** AE2's recipe-encoding algorithm adapted to the combined terminal's menu type. */
@@ -168,10 +169,14 @@ public final class MestEncodingHelper {
                 if (ingredient.isEmpty()) {
                     continue;
                 }
-                var bestNetworkIngredient = priorities.entrySet().stream()
+                var rankedNetworkKeys = priorities.entrySet().stream()
                         .filter(entry -> entry.getKey() instanceof AEItemKey itemKey && itemKey.matches(ingredient))
-                        .max(Map.Entry.comparingByValue())
-                        .map(entry -> entry.getKey() instanceof AEItemKey itemKey ? itemKey.toStack() : null);
+                        .sorted(Map.Entry.<AEKey, Integer>comparingByValue().reversed())
+                        .map(Map.Entry::getKey)
+                        .toList();
+                var bestNetworkIngredient = java.util.Optional
+                        .ofNullable(GtlCompat.preferUniversalCircuit(rankedNetworkKeys, key -> key))
+                        .map(key -> ((AEItemKey) key).toStack());
                 var bestIngredient = bestNetworkIngredient.orElseGet(() -> {
                     var candidates = ingredient.getItems();
                     for (var candidate : candidates) {
@@ -232,12 +237,17 @@ public final class MestEncodingHelper {
     private static GenericStack findBestIngredient(
             Map<AEKey, Integer> priorities,
             List<GenericStack> possibleIngredients) {
-        return possibleIngredients.stream()
+        List<GenericStack> ranked = possibleIngredients.stream()
                 .filter(Objects::nonNull)
                 .map(stack -> Pair.of(stack, priorities.getOrDefault(stack.what(), Integer.MIN_VALUE)))
-                .max(Comparator.comparingInt(Pair::getRight))
+                .sorted(Comparator.comparingInt((Pair<GenericStack, Integer> pair) -> pair.getRight()).reversed())
                 .map(Pair::getLeft)
-                .orElseThrow(() -> new IllegalArgumentException("Recipe slot has no encodable ingredients"));
+                .toList();
+        if (ranked.isEmpty()) {
+            throw new IllegalArgumentException("Recipe slot has no encodable ingredients");
+        }
+        // GTL: a universal circuit beats every programmed circuit variant.
+        return GtlCompat.preferUniversalCircuit(ranked, GenericStack::what);
     }
 
     private static void addOrMerge(List<GenericStack> stacks, GenericStack newStack) {

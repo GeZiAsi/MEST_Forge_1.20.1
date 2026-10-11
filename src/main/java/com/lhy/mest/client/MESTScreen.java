@@ -2314,7 +2314,9 @@ public class MESTScreen extends AEBaseScreen<MESTMenu> implements IUniversalTerm
             if (entry != null) {
                 List<Component> lines = AEKeyRendering.getTooltip(entry.getWhat());
                 if (Tooltips.shouldShowAmountTooltip(entry.getWhat(), entry.getStoredAmount())) {
-                    lines.add(Tooltips.getAmountTooltip(
+                    var exact = meListPanel.gtlDisplay().amountTooltip(
+                            ButtonToolTips.StoredAmount, entry.getWhat(), entry.getStoredAmount());
+                    lines.add(exact != null ? exact : Tooltips.getAmountTooltip(
                             ButtonToolTips.StoredAmount, entry.getWhat(), entry.getStoredAmount()));
                 }
                 if (entry.getRequestableAmount() > 0) {

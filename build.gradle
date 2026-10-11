@@ -126,6 +126,9 @@ mixin {
     config "mest.mixins.json"
 }
 
+// See "Optional local GTL smoke test" below.
+def gtlModsDir = providers.gradleProperty('mestGtlMods')
+
 dependencies {
     annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
     // Forge 1.20.1 does not ship MixinExtras; bundle it (initialised by MestMixinPlugin).
@@ -152,13 +155,50 @@ dependencies {
     modRuntimeOnly "maven.modrinth:glodium:${glodium_version}"
     modRuntimeOnly "me.shedaniel.cloth:cloth-config-forge:${cloth_config_version}"
     modRuntimeOnly "dev.architectury:architectury-forge:${architectury_version}"
-    modRuntimeOnly "mezz.jei:jei-${minecraft_version}-forge:${jei_version}"
+    if (!gtlModsDir.isPresent()) {
+        modRuntimeOnly "mezz.jei:jei-${minecraft_version}-forge:${jei_version}"
+    }
     modRuntimeOnly "top.theillusivec4.curios:curios-forge:${curios_version}"
 
     testImplementation 'org.junit.jupiter:junit-jupiter:5.11.4'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher:1.11.4'
     // Minecraft classes touched by tests (e.g. Mth) log through the SLF4J 2 API.
     testRuntimeOnly 'org.slf4j:slf4j-api:2.0.7'
+}
+
+// Optional local GTL smoke test: -PmestGtlMods=<GTL instance mods folder> puts gtlcore and its
+// dependency chain on the development runtime (read-only; the jars are remapped into the Gradle
+// cache). Without the property the dev runtime is just the AE2 stack above.
+if (gtlModsDir.isPresent()) {
+    def dir = file(gtlModsDir.get())
+    // JEI is left out here: in a dev classpath gtceu's mixin plugin sees JEI and applies a JEI
+    // mixin that its production class loading never applies, which fails against JEI 15.49.
+    def wanted = ['gtlcore-', 'gtceu-', 'ldlib-forge-', 'ad_astra-forge-', 'botarium-forge-',
+                  'resourcefulconfig-forge-', 'resourcefullib-forge-', 'gtmthings-', 'mae2-',
+                  'ftb-ultimine-forge-', 'ftb-library-forge-', 'ftb-chunks-forge-', 'ftb-teams-forge-']
+    repositories {
+        exclusiveContent {
+            forRepository {
+                flatDir {
+                    name = "GTL mods"
+                    dirs dir
+                }
+            }
+            filter {
+                includeGroup "gtl.local"
+            }
+        }
+    }
+    dependencies {
+        wanted.each { prefix ->
+            def jar = dir.listFiles()?.find { it.name.contains(prefix) && it.name.endsWith('.jar') }
+            if (jar == null) {
+                throw new GradleException("mestGtlMods: no ${prefix}*.jar in ${dir}")
+            }
+            // flatDir resolves a version-less module straight to <name>.jar
+            modRuntimeOnly(group: 'gtl.local', name: jar.name - '.jar')
+        }
+    }
 }
 
 // Unit tests are isolated from mod dependencies by default. Packet codec tests need the same
