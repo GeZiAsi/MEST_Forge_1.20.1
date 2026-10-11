@@ -71,6 +71,19 @@ final class DevTestSteps {
             steps.add(new MestDevTest.Step("verify pattern encoding", 5, null,
                     mc -> MestDevTest.runOnServer(mc, player -> DevTestJei.verifyTransfer(player, encoding))));
         }
+        steps.add(new MestDevTest.Step("open magnet settings", 30, "mest_08_magnet", mc -> {
+            if (mc.screen instanceof MESTScreen screen) {
+                screen.getMenu().openMagnetMenu();
+            }
+        }));
+        steps.add(new MestDevTest.Step("back from magnet settings", 40, null, mc -> {
+            MestDevTest.log("{} magnet screen: {}", mc.screen instanceof com.lhy.mest.client.MestMagnetScreen
+                    ? "PASS" : "FAIL", mc.screen == null ? null : mc.screen.getClass().getSimpleName());
+            appeng.client.gui.implementations.AESubScreen.goBack();
+        }));
+        steps.add(new MestDevTest.Step("terminal after magnet", 1, null, mc -> MestDevTest.log(
+                "{} back to terminal: {}", mc.screen instanceof MESTScreen ? "PASS" : "FAIL",
+                mc.screen == null ? null : mc.screen.getClass().getSimpleName())));
         // Every module panel once: toggle it (as its hotkey does), screenshot, toggle it back.
         for (MestClientModules.Registration module : MestClientModules.all()) {
             String id = module.id();
@@ -80,6 +93,14 @@ final class DevTestSteps {
             steps.add(new MestDevTest.Step("toggle " + id, 15, "mest_mod_" + id, mc -> runHotkey(mc, id)));
             steps.add(new MestDevTest.Step("restore " + id, 5, null, mc -> runHotkey(mc, id)));
         }
+        // Last, since it closes the terminal: the toolkit quick bars beside the vanilla hotbar.
+        steps.add(new MestDevTest.Step("enable toolkit bars", 10, null,
+                mc -> MestDevTest.runOnServer(mc, DevTestSteps::stockToolkitBars)));
+        steps.add(new MestDevTest.Step("toolkit bars hud", 30, "mest_09_toolkit_hud", mc -> {
+            mc.setScreen(null);
+            MestDevTest.log("toolkit bars enabled on client={}",
+                    com.lhy.mest.terminal.ToolkitBarState.isBarEnabled(mc.player));
+        }));
     }
 
     private static void runHotkey(Minecraft mc, String id) {
@@ -177,5 +198,18 @@ final class DevTestSteps {
             in.append(input.getPossibleInputs()[0]).append('x').append(input.getMultiplier()).append(' ');
         }
         return "inputs=[" + in.toString().trim() + "] outputs=" + java.util.Arrays.toString(details.getOutputs());
+    }
+
+    private static void stockToolkitBars(ServerPlayer player) {
+        var toolkit = com.lhy.mest.terminal.ToolkitBarState.asInventory(player);
+        var tools = List.of(Items.DIAMOND_PICKAXE, Items.DIAMOND_AXE, Items.DIAMOND_SHOVEL, Items.DIAMOND_SWORD,
+                Items.SHEARS, Items.BOW, Items.FISHING_ROD, Items.FLINT_AND_STEEL, Items.SHIELD, Items.TRIDENT);
+        for (int i = 0; i < tools.size() && i < toolkit.size(); i++) {
+            toolkit.setItemDirect(i * 2, new ItemStack(tools.get(i)));
+        }
+        com.lhy.mest.terminal.ToolkitBarActions.setBarEnabled(player, true);
+        MestDevTest.log("toolkit bars enabled on server={} hasTerminal={} size={}",
+                com.lhy.mest.terminal.ToolkitBarState.isBarEnabled(player),
+                com.lhy.mest.terminal.ToolkitBarState.hasTerminal(player), toolkit.size());
     }
 }
