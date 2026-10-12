@@ -2950,12 +2950,16 @@ public final class DockManager {
     }
 
     /**
-     * Z for the cursor stack. Must sit above extra chrome, but stay inside the GUI projection
-     * (very large translates clip 3D item models, which looks like a cut-off icon).
+     * Z for the cursor stack: above every painted window (each root is one {@link #ROOT_LAYER_Z}
+     * deep layer) and the anchored chrome, but inside the GUI projection. Forge 1.20.1 draws GUI z
+     * up to about 9000; beyond that 3D item models are clipped and look cut off.
      */
     public float cursorItemZ() {
-        return Math.min(anchoredChromeZ() + ROOT_LAYER_Z + 300.0F, 1800.0F);
+        float topLayer = Math.max(anchoredChromeZ(), (paintOrderRoots().size() - 1) * ROOT_LAYER_Z);
+        return Math.min(topLayer + ROOT_LAYER_Z + 300.0F, CURSOR_ITEM_MAX_Z);
     }
+
+    private static final float CURSOR_ITEM_MAX_Z = 8000.0F;
 
     public CursorHelper.Shape pointerCursor(double mouseX, double mouseY) {
         ensureProjection();

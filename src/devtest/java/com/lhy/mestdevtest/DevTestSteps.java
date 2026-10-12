@@ -138,6 +138,19 @@ final class DevTestSteps {
             steps.add(new MestDevTest.Step("splice " + id, 15, "mest_splice_" + id,
                     mc -> DevTestDock.spliceOntoMeList(mc, id)));
         }
+        // A carried stack over a stack of floating windows must stay above all of them.
+        steps.add(new MestDevTest.Step("reset layout for carried stack", 5, null, DevTestDock::resetLayout));
+        for (String id : List.of("crafting", "pattern_cache", "wireless_settings", "toolkit", "hotkeys")) {
+            steps.add(new MestDevTest.Step("float " + id + " for carried stack", 5, null,
+                    mc -> DevTestDock.showFloating(mc, id)));
+        }
+        steps.add(new MestDevTest.Step("carried stack over floating windows", 15, "mest_14_carried_stack",
+                mc -> DevTestDock.carryOver(mc, "hotkeys", new net.minecraft.world.item.ItemStack(Items.CRAFTING_TABLE, 64))));
+        steps.add(new MestDevTest.Step("drop carried stack", 5, null, mc -> {
+            if (mc.player != null) {
+                mc.player.containerMenu.setCarried(net.minecraft.world.item.ItemStack.EMPTY);
+            }
+        }));
         // A smaller terminal: shrink the anchored window, then larger GUI scales.
         steps.add(new MestDevTest.Step("reset layout", 5, null, DevTestDock::resetLayout));
         steps.add(new MestDevTest.Step("shrink anchored window", 15, "mest_10_shrunk",

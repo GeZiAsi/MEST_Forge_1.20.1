@@ -145,4 +145,30 @@ final class DevTestDock {
         MestDevTest.log("FAIL no method {}", name);
         return null;
     }
+
+    /** Puts {@code stack} on the cursor (client-side, visual) and moves the pointer over a panel. */
+    static void carryOver(Minecraft mc, String id, net.minecraft.world.item.ItemStack stack) {
+        if (!(mc.screen instanceof MESTScreen screen)) {
+            return;
+        }
+        ModulePanel panel = panel(screen, id);
+        if (panel == null) {
+            return;
+        }
+        mc.player.containerMenu.setCarried(stack);
+        double scale = mc.getWindow().getGuiScale();
+        double x = (panel.x + panel.width / 2.0) * scale;
+        double y = (panel.y + panel.height / 2.0) * scale;
+        try {
+            Field xpos = net.minecraft.client.MouseHandler.class.getDeclaredField("xpos");
+            Field ypos = net.minecraft.client.MouseHandler.class.getDeclaredField("ypos");
+            xpos.setAccessible(true);
+            ypos.setAccessible(true);
+            xpos.setDouble(mc.mouseHandler, x);
+            ypos.setDouble(mc.mouseHandler, y);
+        } catch (ReflectiveOperationException e) {
+            MestDevTest.LOGGER.error("MEST-DEVTEST FAIL move mouse", e);
+        }
+        MestDevTest.log("carried {} over {}; cursor item z={}", stack, describe(screen, id), dock(screen).cursorItemZ());
+    }
 }
