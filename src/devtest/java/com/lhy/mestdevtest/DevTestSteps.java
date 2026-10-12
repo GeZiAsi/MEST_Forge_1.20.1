@@ -74,6 +74,27 @@ final class DevTestSteps {
                     mc -> DevTestJei.transferCraftingTable(mc, encoding)));
             steps.add(new MestDevTest.Step("verify pattern encoding", 5, null,
                     mc -> MestDevTest.runOnServer(mc, player -> DevTestJei.verifyTransfer(player, encoding))));
+            // The same buttons when JEI was opened from another screen covering the terminal
+            // (a quest book): the transfer must land back in the terminal, not that screen.
+            for (String kind : List.of("CRAFT", "ENCODE")) {
+                var target = kind.equals("CRAFT") ? crafting : encoding;
+                steps.add(new MestDevTest.Step("clear grids before quest-book " + kind, 5, null,
+                        mc -> MestDevTest.runOnServer(mc, DevTestJei::clearGrids)));
+                steps.add(new MestDevTest.Step("open fake quest book", 5, null,
+                        mc -> mc.setScreen(new net.minecraft.client.gui.screens.Screen(
+                                net.minecraft.network.chat.Component.literal("Fake quest book")) {
+                        })));
+                steps.add(new MestDevTest.Step("jei recipes from quest book", 20, null,
+                        DevTestJei::showCraftingTableRecipes));
+                steps.add(new MestDevTest.Step("press jei " + kind + " from quest book", 20, null,
+                        mc -> DevTestJei.pressRecipeButton(mc, kind)));
+                steps.add(new MestDevTest.Step("verify quest-book " + kind, 5, null, mc -> {
+                    MestDevTest.log("{} back in terminal (not the quest book) after jei {}: {}",
+                            mc.screen instanceof MESTScreen ? "PASS" : "FAIL", kind,
+                            mc.screen == null ? null : mc.screen.getTitle().getString());
+                    MestDevTest.runOnServer(mc, player -> DevTestJei.verifyTransfer(player, target));
+                }));
+            }
             // MEST's own buttons beside each recipe in JEI's recipe screen.
             for (String kind : List.of("CRAFT", "ENCODE")) {
                 var target = kind.equals("CRAFT") ? crafting : encoding;

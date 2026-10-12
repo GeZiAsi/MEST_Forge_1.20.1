@@ -2707,6 +2707,7 @@ public class MESTScreen extends AEBaseScreen<MESTMenu> implements IUniversalTerm
 
     @Override
     public void removed() {
+        MestClient.rememberCoveredTerminal(this);
         if (meListPanel != null) {
             // AE2 MEStorageScreen.removed() calls storeState() so the next constructor
             // (craft-amount return, terminal reopen) sees the search that was on screen,

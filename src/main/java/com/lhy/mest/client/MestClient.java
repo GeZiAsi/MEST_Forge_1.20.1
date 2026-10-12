@@ -44,6 +44,24 @@ public final class MestClient {
      */
     private static boolean loggedSortButton;
 
+    /** The terminal screen most recently covered by another screen (quest book, JEI, ...). */
+    private static java.lang.ref.WeakReference<MESTScreen> coveredTerminal = new java.lang.ref.WeakReference<>(null);
+
+    static void rememberCoveredTerminal(MESTScreen screen) {
+        coveredTerminal = new java.lang.ref.WeakReference<>(screen);
+    }
+
+    /**
+     * A covered terminal whose menu is still the player's open container, so showing that screen
+     * again resumes the same terminal; {@code null} once it was really closed.
+     */
+    @org.jetbrains.annotations.Nullable
+    public static MESTScreen coveredTerminal() {
+        MESTScreen screen = coveredTerminal.get();
+        var player = Minecraft.getInstance().player;
+        return screen != null && player != null && player.containerMenu == screen.getMenu() ? screen : null;
+    }
+
     private static void dropForeignSortButtons(net.minecraftforge.client.event.ScreenEvent.Init.Post event) {
         if (!(event.getScreen() instanceof MESTScreen) && !(event.getScreen() instanceof MestMagnetScreen)) {
             return;

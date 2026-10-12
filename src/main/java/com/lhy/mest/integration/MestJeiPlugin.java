@@ -257,6 +257,7 @@ public class MestJeiPlugin implements IModPlugin {
             }
 
             CraftingHelper.performTransfer(menu, crafting, craftMissing);
+            MestJeiRecipeButtons.requestReturnToTerminal();
             return null;
         }
     }
@@ -322,6 +323,7 @@ public class MestJeiPlugin implements IModPlugin {
                     // GTL: Ctrl turns inputs the machine keeps (circuits, molds) into virtual ones.
                     inputs = com.lhy.mest.compat.gtl.GtlCompat.virtualiseNotConsumedInputs(rawRecipe, inputs);
                 }
+                MestJeiRecipeButtons.requestReturnToTerminal();
                 MestEncodingHelper.encode(
                         menu,
                         kind,

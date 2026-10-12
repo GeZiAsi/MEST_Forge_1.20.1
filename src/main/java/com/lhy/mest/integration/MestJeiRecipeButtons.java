@@ -73,6 +73,7 @@ final class MestJeiRecipeButtons {
             installed = true;
             MinecraftForge.EVENT_BUS.addListener(MestJeiRecipeButtons::onRender);
             MinecraftForge.EVENT_BUS.addListener(MestJeiRecipeButtons::onMousePressed);
+            MinecraftForge.EVENT_BUS.addListener(MestJeiRecipeButtons::onScreenOpening);
         }
     }
 
@@ -133,9 +134,37 @@ final class MestJeiRecipeButtons {
                         net.minecraft.client.resources.sounds.SimpleSoundInstance.forUI(
                                 net.minecraft.sounds.SoundEvents.UI_BUTTON_CLICK, 1.0F));
                 // Back to the terminal, like JEI's own transfer button.
+                requestReturnToTerminal();
                 event.getScreen().onClose();
             }
             return;
+        }
+    }
+
+    /**
+     * After a transfer into the terminal, the recipe screen should hand back to the terminal. JEI
+     * closes to the screen it was opened from, which is not the terminal when the recipe was looked
+     * up from somewhere else while the terminal stayed open (e.g. a quest book opened over it).
+     */
+    static void requestReturnToTerminal() {
+        returnToTerminal = true;
+    }
+
+    private static boolean returnToTerminal;
+
+    private static void onScreenOpening(ScreenEvent.Opening event) {
+        if (!returnToTerminal) {
+            return;
+        }
+        returnToTerminal = false;
+        // Only the recipe screen closing after the transfer; any later screen opens as asked.
+        if (!isRecipesScreen(event.getCurrentScreen())
+                || event.getNewScreen() instanceof com.lhy.mest.client.MESTScreen) {
+            return;
+        }
+        var terminal = com.lhy.mest.client.MestClient.coveredTerminal();
+        if (terminal != null) {
+            event.setNewScreen(terminal);
         }
     }
 
