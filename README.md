@@ -22,6 +22,7 @@
 | **原作者** | [lhy512103](https://github.com/lhy512103) — 原版仓库（NeoForge 1.21.1）：<https://github.com/lhy512103/MEST> |
 | **移植作者** | [GeZiAsi](https://github.com/GeZiAsi)（格兹亚西） — 移植版仓库：<https://github.com/GeZiAsi/MEST_Forge_1.20.1> |
 | **游戏版本** | Minecraft 1.20.1 · Forge 47.1 及以上 |
+| **辅助开发** | 代码由 Claude（Anthropic）辅助编写 |
 | **许可证** | MIT，保留原作者版权声明（全文见[文末](#许可证)） |
 
 ME 拼接终端把存储、合成、样板和工具放进同一个界面：ME 列表、合成台、样板编码、样板管理、垃圾桶、工具包……
@@ -201,6 +202,16 @@ modBus.addListener((RegisterMestModulesEvent event) ->
 
 ## 更新日志
 
+### v0.0.3.1-forge1.20.1
+
+- 修复：正在合成的物品在 ME 列表置顶行显示为黑块。
+- 修复：鼠标上拿着的物品被上层浮动面板挡住，只露出数量。
+- 修复：JEI 物品提示框被终端面板遮挡。
+- 修复：布局编辑器内容微调时，变暗区域重叠处颜色加深。
+- 修复：从 FTB 任务等界面查 JEI 配方后，点"在终端合成 / 写入样板编码"回到了任务界面而不是终端。
+- 新增：左侧设置条可拖动成为独立窗口，拖回终端左边缘或双击底部抓手即吸附回去。
+- 调整：jar 内附带 README（含 MIT 许可证全文）。
+
 ### v0.0.3.0-forge1.20.1 · 移植 by GeZiAsi
 
 - 移植：NeoForge 1.21.1 → Forge 1.20.1（AE2 15、AE2WTLib 15、JEI 15.19–15.49），目标整合包 GTL。
@@ -305,6 +316,7 @@ splice together. This is the **Forge 1.20.1 port** for the **GTL (GregTech Leisu
 
 - **Original author:** [lhy512103](https://github.com/lhy512103) — original NeoForge 1.21.1 repository: <https://github.com/lhy512103/MEST>
 - **Port:** [GeZiAsi](https://github.com/GeZiAsi) (格兹亚西) — <https://github.com/GeZiAsi/MEST_Forge_1.20.1>
+- **Development:** code written with assistance from Claude (Anthropic).
 - **Requires:** Minecraft 1.20.1, Forge 47.1+, AE2 15.x, AE2WTLib 15.x. Optional: JEI 15.19–15.49, ExtendedAE, gtlcore.
 - **New in the port:** "craft in terminal" (Ctrl requests missing ingredients) and "encode pattern" buttons beside every JEI recipe; GTL support (gtlcore precise amounts, universal circuit preference, Ctrl virtual ingredients); a spliceable trash; layout fixes for small screens.
 - **Not ported:** EMI, Some Useless Things, Lightning, import/export and ClientSort integrations.
