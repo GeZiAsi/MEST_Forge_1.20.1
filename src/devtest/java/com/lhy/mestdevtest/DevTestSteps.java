@@ -90,6 +90,24 @@ final class DevTestSteps {
                 }));
             }
         }
+        // An item being crafted: pinned to the first row with the assembler-light animation over it.
+        steps.add(new MestDevTest.Step("pending craft of iron ingot", 25, "mest_13_pending_craft", mc -> {
+            if (mc.screen instanceof MESTScreen screen) {
+                var iron = appeng.api.stacks.AEItemKey.of(Items.IRON_INGOT);
+                appeng.client.gui.me.common.PinnedKeys.pinKey(iron,
+                        appeng.client.gui.me.common.PinnedKeys.PinReason.CRAFTING);
+                appeng.client.gui.me.common.PendingCraftingJobs.jobStatus(java.util.UUID.randomUUID(), iron, 1, 1,
+                        appeng.core.sync.packets.CraftingJobStatusPacket.Status.STARTED);
+                screen.meListPanel().repo().updateView();
+                var repo = screen.meListPanel().repo();
+                MestDevTest.log("pinned row={} first={}", repo.hasPinnedRow(),
+                        repo.size() > 0 && repo.get(0) != null ? repo.get(0).getWhat() : null);
+            }
+        }));
+        steps.add(new MestDevTest.Step("clear pending craft", 5, null, mc -> {
+            appeng.client.gui.me.common.PendingCraftingJobs.clearPendingJobs();
+            appeng.client.gui.me.common.PinnedKeys.clearPinnedKeys();
+        }));
         steps.add(new MestDevTest.Step("open magnet settings", 30, "mest_08_magnet", mc -> {
             if (mc.screen instanceof MESTScreen screen) {
                 screen.getMenu().openMagnetMenu();

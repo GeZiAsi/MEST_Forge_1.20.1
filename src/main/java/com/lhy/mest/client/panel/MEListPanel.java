@@ -14,10 +14,8 @@ import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.renderer.Rect2i;
-import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.inventory.InventoryMenu;
 import net.minecraft.world.inventory.Slot;
 
 import appeng.api.client.AEKeyRendering;
@@ -43,7 +41,6 @@ import appeng.client.gui.widgets.ITooltip;
 import appeng.client.gui.widgets.Scrollbar;
 import appeng.client.gui.widgets.TabButton;
 import appeng.core.AEConfig;
-import appeng.core.AppEng;
 import appeng.core.localization.GuiText;
 import appeng.integration.abstraction.ItemListMod;
 import appeng.menu.me.common.GridInventoryEntry;
@@ -346,20 +343,23 @@ public class MEListPanel extends ModulePanel implements ISortSource {
      * molecular-assembler light over every slot whose item is currently being crafted. Replicated
      * here because this screen is a custom dock UI and cannot inherit that screen.
      */
+    private static final Blitter ASSEMBLER_LIGHTS = Blitter.texture("block/molecular_assembler_lights.png", 16, 192);
+    private static final int LIGHT_FRAMES = 192 / 16;
+
     private void renderPinnedRowDecorations(GuiGraphics g) {
         if (!repo.hasPinnedRow()) {
             return;
         }
-        var atlas = Minecraft.getInstance().getTextureAtlas(InventoryMenu.BLOCK_ATLAS);
+        // As AE2 15 draws it: frames of the 16x192 animation strip, not a block-atlas sprite. The
+        // atlas-sprite form (AE2 19) sampled the wrong area here and covered the item in black.
+        int frame = (int) ((System.currentTimeMillis() / 100) % LIGHT_FRAMES);
         for (RepoSlot repoSlot : repoSlots) {
             GridInventoryEntry entry = repoSlot.getEntry();
             if (entry == null || !PendingCraftingJobs.hasPendingJob(entry.getWhat())) {
                 continue;
             }
-            TextureAtlasSprite sprite = atlas.apply(AppEng.makeId("block/molecular_assembler_lights"));
-            Blitter.sprite(sprite)
-                    .src(sprite.getX() + 2, sprite.getY() + 2,
-                            sprite.contents().width() - 4, sprite.contents().height() - 4)
+            ASSEMBLER_LIGHTS.copy()
+                    .src(2, 2 + frame * 16, 12, 12)
                     .dest(repoSlot.x - 1, repoSlot.y - 1, 18, 18)
                     .blit(g);
         }
