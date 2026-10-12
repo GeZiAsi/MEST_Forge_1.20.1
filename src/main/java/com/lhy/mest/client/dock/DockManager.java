@@ -165,6 +165,8 @@ public final class DockManager {
     private boolean viewCellsVisible = true;
     private boolean moreSettingsVisible = false;
     private boolean pullItemsRecipeButton = true;
+    /** Left toolbar as its own window: null while it is attached to the anchored group. */
+    private int[] sideBarAnchor;
     private List<String> moreSettingsOrder = new ArrayList<>();
     private boolean pendingCenterOnReturn;
     private Path preferencesPath;
@@ -488,6 +490,20 @@ public final class DockManager {
         }
         pullItemsRecipeButton = value;
         com.lhy.mest.integration.MestPullItemsSupport.setEnabled(value);
+        savePreferences();
+    }
+
+    /**
+     * Where the detached left toolbar sits (the point it is laid out against, like a group's
+     * top-left corner), or {@code null} while it is attached to the anchored group.
+     */
+    public int[] sideBarAnchor() {
+        return sideBarAnchor == null ? null : sideBarAnchor.clone();
+    }
+
+    /** Detach the toolbar at {@code (x, y)}, or reattach it with {@code null}. */
+    public void setSideBarAnchor(int[] anchor) {
+        sideBarAnchor = anchor == null ? null : new int[] { anchor[0], anchor[1] };
         savePreferences();
     }
 
@@ -1381,13 +1397,14 @@ public final class DockManager {
                         }
                     }
                 }
-                if (contentEditModuleId != null) {
-                    ModulePanel editing = panelsByModuleId.get(contentEditModuleId);
-                    if (editing != null && editing.visible) {
-                        dimUneditedPanels(graphics, root, editing);
-                    }
-                }
             });
+        }
+        if (contentEditModuleId != null) {
+            ModulePanel editing = panelsByModuleId.get(contentEditModuleId);
+            if (editing != null && editing.visible) {
+                int topLayer = layer;
+                withRootLayer(graphics, topLayer, 0.0F, () -> dimAroundEditedPanel(graphics, editing));
+            }
         }
     }
 
@@ -1595,18 +1612,38 @@ public final class DockManager {
 
     private static final int CONTENT_EDIT_DIM = 0x99000000;
 
-    /** Dim every visible leaf except the one being content-edited. */
-    private void dimUneditedPanels(GuiGraphics graphics, FloatingRoot root, ModulePanel editing) {
-        for (ModulePanel panel : visiblePanels(root)) {
-            if (panel == editing) {
-                continue;
-            }
-            int left = panel.x - panel.outsideHitLeftWidth();
-            int top = panel.y - panel.outsideHitTop();
-            int right = panel.x + panel.width + panel.outsideHitWidth();
-            int bottom = panel.y + panel.height;
-            if (right > left && bottom > top) {
-                graphics.fill(left, top, right, bottom, CONTENT_EDIT_DIM);
+    /**
+     * Dim the whole canvas except the panel being content-edited, as one layer above every window.
+     * Dimming each window's panels separately stacked the shade wherever windows, outside rails or
+     * tab strips overlapped, leaving darker patches.
+     */
+    private void dimAroundEditedPanel(GuiGraphics graphics, ModulePanel editing) {
+        int left = editingLayout ? editorInsetLeft : 0;
+        int top = editingLayout ? editorInsetTop : 0;
+        int right = screenWidth - (editingLayout ? editorInsetRight : 0);
+        int bottom = screenHeight - (editingLayout ? editorInsetBottom : 0);
+        int holeLeft = Math.max(left, Math.min(right, editing.x));
+        int holeTop = Math.max(top, Math.min(bottom, editing.y));
+        int holeRight = Math.max(holeLeft, Math.min(right, editing.x + editing.width));
+        int holeBottom = Math.max(holeTop, Math.min(bottom, editing.y + editing.height));
+        graphics.fill(left, top, right, holeTop, CONTENT_EDIT_DIM);
+        graphics.fill(left, holeBottom, right, bottom, CONTENT_EDIT_DIM);
+        graphics.fill(left, holeTop, holeLeft, holeBottom, CONTENT_EDIT_DIM);
+        graphics.fill(holeRight, holeTop, right, holeBottom, CONTENT_EDIT_DIM);
+        // Windows stacked above the edited panel still cover part of the hole: dim those parts too.
+        boolean above = false;
+        for (FloatingRoot root : paintOrderRoots()) {
+            if (above) {
+                DockRect b = root.bounds();
+                int l = Math.max(holeLeft, b.x());
+                int t = Math.max(holeTop, b.y());
+                int r = Math.min(holeRight, b.right());
+                int bt = Math.min(holeBottom, b.bottom());
+                if (r > l && bt > t) {
+                    graphics.fill(l, t, r, bt, CONTENT_EDIT_DIM);
+                }
+            } else if (leavesOf(root).stream().anyMatch(leaf -> leaf.moduleId().equals(editing.id()))) {
+                above = true;
             }
         }
     }
@@ -1959,6 +1996,7 @@ public final class DockManager {
         moreSettingsVisible = false;
         pullItemsRecipeButton = true;
         moreSettingsOrder = new ArrayList<>();
+        sideBarAnchor = null;
         com.lhy.mest.integration.MestPullItemsSupport.setEnabled(pullItemsRecipeButton);
         if (preferencesPath == null || !Files.isRegularFile(preferencesPath)) {
             return;
@@ -1981,6 +2019,9 @@ public final class DockManager {
                 pullItemsRecipeButton = object.get("pullItemsRecipeButton").getAsBoolean();
             }
             moreSettingsOrder = readStringList(object, "moreSettingsOrder");
+            if (object.has("sideBarX") && object.has("sideBarY")) {
+                sideBarAnchor = new int[] { object.get("sideBarX").getAsInt(), object.get("sideBarY").getAsInt() };
+            }
             PatternAccessPanel.readPreferences(object);
             com.lhy.mest.integration.MestPullItemsSupport.setEnabled(pullItemsRecipeButton);
         } catch (IOException | RuntimeException e) {
@@ -2001,6 +2042,10 @@ public final class DockManager {
             object.addProperty("moreSettingsVisible", moreSettingsVisible);
             object.addProperty("pullItemsRecipeButton", pullItemsRecipeButton);
             object.add("moreSettingsOrder", toStringArray(moreSettingsOrder));
+            if (sideBarAnchor != null) {
+                object.addProperty("sideBarX", sideBarAnchor[0]);
+                object.addProperty("sideBarY", sideBarAnchor[1]);
+            }
             PatternAccessPanel.writePreferences(object);
             Files.writeString(preferencesPath, object.toString(), StandardCharsets.UTF_8);
         } catch (IOException | RuntimeException e) {

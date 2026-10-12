@@ -185,5 +185,7 @@
   "gui.mesplicedterminal.combine_window.set": "组合模块 %s（点击切换到下一个，超过 3 则解除）",
   "gui.mesplicedterminal.jei.craft_in_terminal": "在拼接终端中合成",
   "gui.mesplicedterminal.jei.craft_in_terminal.ctrl": "§7Ctrl：自动下单合成缺少的材料",
-  "gui.mesplicedterminal.jei.encode_pattern": "写入样板编码"
+  "gui.mesplicedterminal.jei.encode_pattern": "写入样板编码",
+  "gui.mesplicedterminal.side_bar_grip": "移动设置条",
+  "gui.mesplicedterminal.side_bar_grip.hint": "§7拖动可单独放置；拖回终端左边缘松手或双击即可吸附回去"
 }

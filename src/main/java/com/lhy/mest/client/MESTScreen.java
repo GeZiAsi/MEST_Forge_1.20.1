@@ -10,6 +10,7 @@ import com.mojang.blaze3d.platform.InputConstants;
 import org.lwjgl.glfw.GLFW;
 
 import net.minecraft.ChatFormatting;
+import net.minecraft.Util;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
@@ -141,6 +142,15 @@ public class MESTScreen extends AEBaseScreen<MESTMenu> implements IUniversalTerm
     private static final String MORE_EDIT = "edit_layout";
     private static final String MORE_GROUP_PREFIX = "combined_module_";
     private static final int MORE_SETTINGS_SHIFT = 3;
+    private static final int SIDE_BAR_GRIP_HEIGHT = 8;
+    /** Release within this distance of the terminal's left edge reattaches the toolbar. */
+    private static final int SIDE_BAR_SNAP = 12;
+    private Rect2i sideBarGrip = new Rect2i(0, 0, 0, 0);
+    /** Toolbar position while its grip is being dragged; null otherwise. */
+    private int[] sideBarDragAnchor;
+    private double sideBarDragOffsetX;
+    private double sideBarDragOffsetY;
+    private long sideBarGripClickTime;
     private ToolbarIconButton lockLayoutBtn;
     private ToolbarIconButton undoLayoutBtn;
     private ToolbarIconButton cyclePresetBtn;
@@ -550,19 +560,120 @@ public class MESTScreen extends AEBaseScreen<MESTMenu> implements IUniversalTerm
 
     private void attachMeSideBar() {
         DockRect group = dock.anchoredGroupBounds();
-        if (group == null) {
+        int[] anchor = sideBarDragAnchor != null ? sideBarDragAnchor : dock.sideBarAnchor();
+        if (group == null && anchor == null) {
             meSideBar.hide();
             moreSettingsBar.hide();
+            sideBarGrip = new Rect2i(0, 0, 0, 0);
             return;
         }
+        // Attached: laid out against the anchored group's top-left. Detached: its own position.
+        int anchorX = anchor != null ? anchor[0] : group.x();
+        int anchorY = anchor != null ? anchor[1] : group.y();
         rebuildMoreSettingsModules();
-        meSideBar.layoutAgainst(group.x(), group.y(), true);
+        meSideBar.layoutAgainst(anchorX, anchorY, true);
         for (Button button : moreSettingsBar.buttons()) {
             button.visible = true;
         }
-        int moreLeft = (meSideBar.isVisible() ? meSideBar.bounds().getX() : group.x()) - MORE_SETTINGS_SHIFT;
-        moreSettingsBar.layoutAgainst(moreLeft, group.y(), moreSettingsVisible);
+        int moreLeft = (meSideBar.isVisible() ? meSideBar.bounds().getX() : anchorX) - MORE_SETTINGS_SHIFT;
+        moreSettingsBar.layoutAgainst(moreLeft, anchorY, moreSettingsVisible);
+        layoutSideBarGrip();
         ensureCyclePickerOnScreen();
+    }
+
+    /** Drag handle under the left toolbar: moves it as its own window, snapping back to the terminal. */
+    private void layoutSideBarGrip() {
+        if (!meSideBar.isVisible()) {
+            sideBarGrip = new Rect2i(0, 0, 0, 0);
+            return;
+        }
+        Rect2i main = meSideBar.bounds();
+        int left = main.getX() - 2;
+        int right = main.getX() + main.getWidth() - 1;
+        int bottom = main.getY() + main.getHeight() + 3;
+        if (moreSettingsBar.isVisible()) {
+            Rect2i more = moreSettingsBar.bounds();
+            left = Math.min(left, more.getX() - 2);
+            bottom = Math.max(bottom, more.getY() + more.getHeight() + 3);
+        }
+        sideBarGrip = new Rect2i(left, bottom + 1, right - left, SIDE_BAR_GRIP_HEIGHT);
+    }
+
+    private boolean inSideBarGrip(double mx, double my) {
+        return sideBarGrip.getWidth() > 0
+                && mx >= sideBarGrip.getX() && mx < sideBarGrip.getX() + sideBarGrip.getWidth()
+                && my >= sideBarGrip.getY() && my < sideBarGrip.getY() + sideBarGrip.getHeight();
+    }
+
+    private void renderSideBarGrip(GuiGraphics g, int mouseX, int mouseY) {
+        if (sideBarGrip.getWidth() <= 0) {
+            return;
+        }
+        int x = sideBarGrip.getX();
+        int y = sideBarGrip.getY();
+        int w = sideBarGrip.getWidth();
+        int h = sideBarGrip.getHeight();
+        GuiSprites.verticalButtonsBackground(g, x, y, w + 1, h);
+        int dotColor = inSideBarGrip(mouseX, mouseY) || sideBarDragAnchor != null ? 0xFF517497 : 0xFF8B8B8B;
+        int dotsY = y + h / 2 - 1;
+        for (int dx = x + w / 2 - 7; dx <= x + w / 2 + 5; dx += 4) {
+            g.fill(dx, dotsY, dx + 2, dotsY + 2, dotColor);
+        }
+    }
+
+    private boolean pressSideBarGrip(double mx, double my, int button) {
+        if (button != 0 || !inSideBarGrip(mx, my)) {
+            return false;
+        }
+        long now = Util.getMillis();
+        if (now - sideBarGripClickTime < 300 && dock.sideBarAnchor() != null) {
+            // Double-click: back onto the terminal.
+            sideBarGripClickTime = 0;
+            dock.setSideBarAnchor(null);
+            attachMeSideBar();
+            return true;
+        }
+        sideBarGripClickTime = now;
+        int[] anchor = currentSideBarAnchor();
+        sideBarDragOffsetX = mx - anchor[0];
+        sideBarDragOffsetY = my - anchor[1];
+        sideBarDragAnchor = anchor;
+        return true;
+    }
+
+    private int[] currentSideBarAnchor() {
+        int[] anchor = dock.sideBarAnchor();
+        if (anchor != null) {
+            return anchor;
+        }
+        DockRect group = dock.anchoredGroupBounds();
+        return group == null ? new int[] { 0, 0 } : new int[] { group.x(), group.y() };
+    }
+
+    private void dragSideBar(double mx, double my) {
+        int barWidth = Math.max(0, (meSideBar.isVisible() ? meSideBar.bounds().getWidth() : 0)
+                + (moreSettingsBar.isVisible() ? moreSettingsBar.bounds().getWidth() + MORE_SETTINGS_SHIFT : 0));
+        int x = (int) Math.round(mx - sideBarDragOffsetX);
+        int y = (int) Math.round(my - sideBarDragOffsetY);
+        x = Math.max(barWidth, Math.min(width, x));
+        y = Math.max(0, Math.min(height - SIDE_BAR_GRIP_HEIGHT - 20, y));
+        sideBarDragAnchor = new int[] { x, y };
+        attachMeSideBar();
+    }
+
+    private void releaseSideBar() {
+        int[] anchor = sideBarDragAnchor;
+        sideBarDragAnchor = null;
+        if (anchor == null) {
+            return;
+        }
+        DockRect group = dock.anchoredGroupBounds();
+        boolean snap = group != null
+                && Math.abs(anchor[0] - group.x()) <= SIDE_BAR_SNAP
+                && anchor[1] >= group.y() - SIDE_BAR_SNAP
+                && anchor[1] <= group.bottom();
+        dock.setSideBarAnchor(snap ? null : anchor);
+        attachMeSideBar();
     }
 
     private void ensureCyclePickerOnScreen() {
@@ -901,6 +1012,15 @@ public class MESTScreen extends AEBaseScreen<MESTMenu> implements IUniversalTerm
     public void render(GuiGraphics g, int mouseX, int mouseY, float partialTicks) {
         hoverFrameReady = false;
         super.render(g, mouseX, mouseY, partialTicks);
+        if (sideBarDetached()) {
+            g.pose().pushPose();
+            try {
+                g.pose().translate(0.0F, 0.0F, dock.cursorItemZ() - 250.0F);
+                renderSideBars(g, mouseX, mouseY, partialTicks);
+            } finally {
+                g.pose().popPose();
+            }
+        }
         g.pose().pushPose();
         try {
             g.pose().translate(0.0F, 0.0F, 4500.0F);
@@ -923,6 +1043,11 @@ public class MESTScreen extends AEBaseScreen<MESTMenu> implements IUniversalTerm
             }
         }
         syncResizeCursor(mouseX, mouseY);
+        // Windows are stacked hundreds of z units deep, so overlays drawn after this screen (JEI's
+        // ingredient tooltips, other mods' Render.Post layers) would fail the depth test behind
+        // them. Everything of this screen is drawn by now; let later layers paint on top.
+        g.flush();
+        com.mojang.blaze3d.systems.RenderSystem.clear(org.lwjgl.opengl.GL11.GL_DEPTH_BUFFER_BIT, Minecraft.ON_OSX);
     }
 
     private void renderAttachedChromeTooltips(GuiGraphics g, int mouseX, int mouseY) {
@@ -934,8 +1059,16 @@ public class MESTScreen extends AEBaseScreen<MESTMenu> implements IUniversalTerm
             drawAeWidgetTooltip(g, mouseX, mouseY, cycleTooltip);
             return;
         }
+        if (inSideBarGrip(mouseX, mouseY) && sideBarDragAnchor == null) {
+            drawTooltipWithHeader(g, mouseX, mouseY, List.of(
+                    Component.translatable("gui.mesplicedterminal.side_bar_grip"),
+                    Component.translatable("gui.mesplicedterminal.side_bar_grip.hint")));
+            return;
+        }
+        boolean onDetachedSideBar = sideBarDetached()
+                && (meSideBar.isMouseOver(mouseX, mouseY) || moreSettingsBar.isMouseOver(mouseX, mouseY));
         ModulePanel top = dock.topPanelAt(mouseX, mouseY);
-        if (top != null && dock.isFloatingWindow(top)) {
+        if (top != null && dock.isFloatingWindow(top) && !onDetachedSideBar) {
             return;
         }
         ExtraChrome extra = extraColumnAt(mouseX, mouseY);
@@ -982,11 +1115,25 @@ public class MESTScreen extends AEBaseScreen<MESTMenu> implements IUniversalTerm
      * with that group and stay under floating windows.
      */
     private void renderAnchoredChrome(GuiGraphics g, Font font, int mouseX, int mouseY, float partialTicks) {
+        // A detached toolbar is its own window above every other one; see render().
+        if (!sideBarDetached()) {
+            renderSideBars(g, mouseX, mouseY, partialTicks);
+        }
+        renderExtraColumns(g);
+    }
+
+    /** True while the left toolbar is (or is being dragged as) its own window. */
+    private boolean sideBarDetached() {
+        return sideBarDragAnchor != null || dock.sideBarAnchor() != null;
+    }
+
+    private void renderSideBars(GuiGraphics g, int mouseX, int mouseY, float partialTicks) {
         if (meSideBar.isVisible()) {
             meSideBar.renderBackground(g);
             for (Button button : meSideBar.buttons()) {
                 button.render(g, mouseX, mouseY, partialTicks);
             }
+            renderSideBarGrip(g, mouseX, mouseY);
         }
         if (moreSettingsBar.isVisible()) {
             g.pose().pushPose();
@@ -1009,6 +1156,9 @@ public class MESTScreen extends AEBaseScreen<MESTMenu> implements IUniversalTerm
                 g.pose().popPose();
             }
         }
+    }
+
+    private void renderExtraColumns(GuiGraphics g) {
         if (upgradeColumn != null && upgradeColumn.isVisible()) {
             upgradeColumn.renderBackground(g);
             g.flush();
@@ -1220,6 +1370,10 @@ public class MESTScreen extends AEBaseScreen<MESTMenu> implements IUniversalTerm
         if (moreSettingsBar.isVisible()) {
             Rect2i rail = moreSettingsBar.bounds();
             zones.add(new Rect2i(rail.getX() - 2, rail.getY() - 1, rail.getWidth() + 1, rail.getHeight() + 4));
+        }
+        if (sideBarGrip.getWidth() > 0) {
+            zones.add(new Rect2i(sideBarGrip.getX(), sideBarGrip.getY(), sideBarGrip.getWidth() + 1,
+                    sideBarGrip.getHeight()));
         }
         if (meSideBar.isVisible()) {
             Rect2i rail = meSideBar.bounds();
@@ -1674,6 +1828,9 @@ public class MESTScreen extends AEBaseScreen<MESTMenu> implements IUniversalTerm
 
     @Override
     public boolean mouseClicked(double mx, double my, int button) {
+        if (pressSideBarGrip(mx, my, button)) {
+            return true;
+        }
         // The global toolbar is not owned by any floating root. Do not focus an arbitrary panel
         // underneath it when the toolbar happens to overlap the workspace.
         if (isMouseOverToolbarWidget(mx, my)) {
@@ -1796,7 +1953,8 @@ public class MESTScreen extends AEBaseScreen<MESTMenu> implements IUniversalTerm
         hoverTop = dock.topPanelAt(mx, my);
         hoverFloating = dock.isFloatingWindow(hoverTop);
         hoverExtra = extraColumnAt(mx, my);
-        hoverToolbar = (hoverTop == null || !hoverFloating)
+        boolean overSideBar = meSideBar.isMouseOver(mx, my) || moreSettingsBar.isMouseOver(mx, my);
+        hoverToolbar = (sideBarDetached() && overSideBar) || (hoverTop == null || !hoverFloating)
                 && (meSideBar.isMouseOver(mx, my)
                         || moreSettingsBar.isMouseOver(mx, my)
                         || hoverExtra != null);
@@ -1939,6 +2097,10 @@ public class MESTScreen extends AEBaseScreen<MESTMenu> implements IUniversalTerm
 
     @Override
     public boolean mouseDragged(double mx, double my, int button, double dragX, double dragY) {
+        if (button == 0 && sideBarDragAnchor != null) {
+            dragSideBar(mx, my);
+            return true;
+        }
         if (button == 0 && moreSettingsPressIndex >= 0) {
             if (!moreSettingsDragging && Math.abs(my - moreSettingsPressY) > 4) {
                 moreSettingsDragging = true;
@@ -1966,6 +2128,10 @@ public class MESTScreen extends AEBaseScreen<MESTMenu> implements IUniversalTerm
 
     @Override
     public boolean mouseReleased(double mx, double my, int button) {
+        if (button == 0 && sideBarDragAnchor != null) {
+            releaseSideBar();
+            return true;
+        }
         if (button == 0 && moreSettingsPressIndex >= 0) {
             boolean dragged = moreSettingsDragging;
             int index = moreSettingsPressIndex;

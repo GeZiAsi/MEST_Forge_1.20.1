@@ -151,6 +151,21 @@ final class DevTestSteps {
                 mc.player.containerMenu.setCarried(net.minecraft.world.item.ItemStack.EMPTY);
             }
         }));
+        // An overlay drawn after the screen (as JEI draws its tooltips) must cover the panels.
+        steps.add(new MestDevTest.Step("post-render tooltip over panels", 15, "mest_15_overlay_tooltip",
+                mc -> DevTestOverlay.showTooltipOver(mc, "pattern_encoding")));
+        steps.add(new MestDevTest.Step("hide post-render tooltip", 3, null, mc -> DevTestOverlay.hide()));
+        // The left toolbar as its own window: detach by its grip, stay put while the terminal
+        // moves, snap back onto the terminal's left edge.
+        steps.add(new MestDevTest.Step("reset layout for toolbar", 5, null, DevTestDock::resetLayout));
+        steps.add(new MestDevTest.Step("toolbar attached", 10, "mest_16_toolbar_attached",
+                mc -> DevTestDock.logToolbar(mc, "attached")));
+        steps.add(new MestDevTest.Step("detach toolbar", 10, "mest_17_toolbar_detached",
+                mc -> DevTestDock.dragToolbar(mc, -60, 40, "detached")));
+        steps.add(new MestDevTest.Step("move terminal", 10, "mest_18_toolbar_stays",
+                mc -> DevTestDock.dragMeListTitle(mc, 70, 0)));
+        steps.add(new MestDevTest.Step("snap toolbar back", 10, "mest_19_toolbar_snapped",
+                mc -> DevTestDock.snapToolbarBack(mc)));
         // A smaller terminal: shrink the anchored window, then larger GUI scales.
         steps.add(new MestDevTest.Step("reset layout", 5, null, DevTestDock::resetLayout));
         steps.add(new MestDevTest.Step("shrink anchored window", 15, "mest_10_shrunk",
@@ -303,6 +318,32 @@ final class DevTestSteps {
                 }
             }));
         }
+        // The layout editor's content-edit dimming on preset 2 (the player's screenshot).
+        steps.add(new MestDevTest.Step("editor content edit on preset 2", 25, "mest_user_editor_dim", mc -> {
+            if (mc.screen instanceof MESTScreen screen) {
+                var dock = DevTestDock.dock(screen);
+                dock.selectPreset(1);
+                for (String hidden : List.of("pattern_access", "wireless_settings")) {
+                    var panel = DevTestDock.panel(screen, hidden);
+                    if (panel != null && dock.isEffectivelyVisible(panel)) {
+                        dock.hideModule(panel);
+                    }
+                }
+                mc.setScreen(new com.lhy.mest.client.MESTLayoutEditorScreen(screen, dock));
+                try {
+                    var enter = dock.getClass().getDeclaredMethod("enterContentEdit", String.class);
+                    enter.setAccessible(true);
+                    enter.invoke(dock, "toolkit");
+                } catch (ReflectiveOperationException e) {
+                    MestDevTest.LOGGER.error("MEST-DEVTEST FAIL content edit", e);
+                }
+            }
+        }));
+        steps.add(new MestDevTest.Step("leave editor", 15, null, mc -> {
+            if (mc.screen instanceof com.lhy.mest.client.MESTLayoutEditorScreen editor) {
+                editor.onClose();
+            }
+        }));
         steps.add(new MestDevTest.Step("preset 0 again", 10, null, mc -> {
             if (mc.screen instanceof MESTScreen screen) {
                 DevTestDock.dock(screen).selectPreset(0);

@@ -185,5 +185,7 @@
   "gui.mesplicedterminal.combine_window.set": "Combined module %s (click for the next slot, past 3 to release)",
   "gui.mesplicedterminal.jei.craft_in_terminal": "Craft in the spliced terminal",
   "gui.mesplicedterminal.jei.craft_in_terminal.ctrl": "§7Ctrl: request missing ingredients",
-  "gui.mesplicedterminal.jei.encode_pattern": "Write into pattern encoding"
+  "gui.mesplicedterminal.jei.encode_pattern": "Write into pattern encoding",
+  "gui.mesplicedterminal.side_bar_grip": "Move toolbar",
+  "gui.mesplicedterminal.side_bar_grip.hint": "§7Drag to place it anywhere; drop it on the terminal's left edge or double-click to reattach"
 }

@@ -171,4 +171,62 @@ final class DevTestDock {
         }
         MestDevTest.log("carried {} over {}; cursor item z={}", stack, describe(screen, id), dock(screen).cursorItemZ());
     }
+
+    static net.minecraft.client.renderer.Rect2i toolbarGrip(MESTScreen screen) {
+        try {
+            Field field = MESTScreen.class.getDeclaredField("sideBarGrip");
+            field.setAccessible(true);
+            return (net.minecraft.client.renderer.Rect2i) field.get(screen);
+        } catch (ReflectiveOperationException e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
+    static void logToolbar(Minecraft mc, String label) {
+        if (mc.screen instanceof MESTScreen screen) {
+            var grip = toolbarGrip(screen);
+            int[] anchor = dock(screen).sideBarAnchor();
+            MestDevTest.log("toolbar {}: grip {},{} {}x{} anchor={} group={}", label, grip.getX(), grip.getY(),
+                    grip.getWidth(), grip.getHeight(), anchor == null ? "attached" : anchor[0] + "," + anchor[1],
+                    dock(screen).anchoredGroupBounds());
+        }
+    }
+
+    static void dragToolbar(Minecraft mc, int dx, int dy, String label) {
+        if (mc.screen instanceof MESTScreen screen) {
+            var grip = toolbarGrip(screen);
+            double x = grip.getX() + grip.getWidth() / 2.0;
+            double y = grip.getY() + grip.getHeight() / 2.0;
+            drag(screen, x, y, x + dx, y + dy);
+            logToolbar(mc, label);
+        }
+    }
+
+    static void dragMeListTitle(Minecraft mc, int dx, int dy) {
+        if (mc.screen instanceof MESTScreen screen) {
+            ModulePanel meList = panel(screen, "me_list");
+            double x = meList.x + 20;
+            double y = meList.y + 5;
+            drag(screen, x, y, x + dx, y + dy);
+            logToolbar(mc, "after moving the terminal");
+        }
+    }
+
+    static void snapToolbarBack(Minecraft mc) {
+        if (mc.screen instanceof MESTScreen screen) {
+            var grip = toolbarGrip(screen);
+            int[] anchor = dock(screen).sideBarAnchor();
+            var group = dock(screen).anchoredGroupBounds();
+            if (anchor == null || group == null) {
+                MestDevTest.log("FAIL toolbar was not detached: {}", anchor);
+                return;
+            }
+            double x = grip.getX() + grip.getWidth() / 2.0;
+            double y = grip.getY() + grip.getHeight() / 2.0;
+            // Land the toolbar anchor a few pixels off the terminal's left edge.
+            drag(screen, x, y, x + (group.x() + 4 - anchor[0]), y + (group.y() + 3 - anchor[1]));
+            logToolbar(mc, "snapped");
+            MestDevTest.log("{} toolbar snapped back", dock(screen).sideBarAnchor() == null ? "PASS" : "FAIL");
+        }
+    }
 }
