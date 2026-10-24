@@ -3,9 +3,6 @@ package com.lhy.mest.client;
 /** Pure interaction decisions shared by the docked ME list and its unit tests. */
 public final class MEListInteractionPolicy {
     public enum ContainerAction {
-        FILL_ONE,
-        FILL_ALL,
-        FILL_ALL_TO_PLAYER,
         EMPTY_ONE,
         EMPTY_ALL
     }
@@ -16,15 +13,6 @@ public final class MEListInteractionPolicy {
     }
 
     private MEListInteractionPolicy() {
-    }
-
-    public static ContainerAction fillContainerAction(boolean quickMove, boolean carriedEmpty) {
-        if (!quickMove) {
-            return ContainerAction.FILL_ONE;
-        }
-        return carriedEmpty
-                ? ContainerAction.FILL_ALL_TO_PLAYER
-                : ContainerAction.FILL_ALL;
     }
 
     public static ContainerAction emptyContainerAction(boolean quickMove) {

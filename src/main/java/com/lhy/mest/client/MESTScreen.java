@@ -2287,15 +2287,9 @@ public class MESTScreen extends AEBaseScreen<MESTMenu> implements IUniversalTerm
     private void handleGridInventoryEntryMouseClick(GridInventoryEntry entry, int mouseButton, ClickType clickType) {
         var menu = getMenu();
 
-        // Preserve AE2's container strategy path for fluids and other keys backed by a portable
-        // container. It takes precedence over ordinary item extraction/insertion.
-        if (mouseButton == 0 && entry != null && ContainerItemStrategies.isKeySupported(entry.getWhat())) {
-            InventoryAction action = toInventoryAction(MEListInteractionPolicy.fillContainerAction(
-                    clickType == ClickType.QUICK_MOVE, menu.getCarried().isEmpty()));
-            menu.handleInteraction(entry.getSerial(), action);
-            return;
-        }
-
+        // Fluids and other keys held in containers go the same way as items: the server turns a
+        // click into filling the held container (a shift-click fills one into the inventory), so a
+        // craftable fluid that is not in stock still opens the crafting amount screen.
         if (mouseButton == 1 && !menu.getCarried().isEmpty()) {
             var emptyingAction = ContainerItemStrategies.getEmptyingAction(menu.getCarried());
             if (emptyingAction != null && menu.isKeyVisible(emptyingAction.what())) {
@@ -2358,9 +2352,7 @@ public class MESTScreen extends AEBaseScreen<MESTMenu> implements IUniversalTerm
 
     private static InventoryAction toInventoryAction(MEListInteractionPolicy.ContainerAction action) {
         return switch (action) {
-            case FILL_ONE -> InventoryAction.FILL_ITEM;
             // AE2 15 only moves one container-load per click.
-            case FILL_ALL, FILL_ALL_TO_PLAYER -> InventoryAction.FILL_ITEM;
             case EMPTY_ONE, EMPTY_ALL -> InventoryAction.EMPTY_ITEM;
         };
     }

@@ -10,12 +10,6 @@ import org.junit.jupiter.api.Test;
 class MEListInteractionPolicyTest {
     @Test
     void selectsNativeContainerActions() {
-        assertEquals(MEListInteractionPolicy.ContainerAction.FILL_ONE,
-                MEListInteractionPolicy.fillContainerAction(false, true));
-        assertEquals(MEListInteractionPolicy.ContainerAction.FILL_ALL_TO_PLAYER,
-                MEListInteractionPolicy.fillContainerAction(true, true));
-        assertEquals(MEListInteractionPolicy.ContainerAction.FILL_ALL,
-                MEListInteractionPolicy.fillContainerAction(true, false));
         assertEquals(MEListInteractionPolicy.ContainerAction.EMPTY_ONE,
                 MEListInteractionPolicy.emptyContainerAction(false));
         assertEquals(MEListInteractionPolicy.ContainerAction.EMPTY_ALL,

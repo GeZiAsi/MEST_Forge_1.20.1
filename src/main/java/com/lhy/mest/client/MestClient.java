@@ -76,6 +76,42 @@ public final class MestClient {
                 }
             }
         }
+        forgetInvTweaksContainerSort(event.getScreen());
+    }
+
+    /**
+     * Inventory Tweaks also remembers the screen as one with a sortable container, then takes a
+     * middle click (its default sort key) on any non-player slot as "sort that container" and
+     * cancels it, so middle-clicking an ME entry to order a craft never reached the terminal.
+     */
+    private static void forgetInvTweaksContainerSort(net.minecraft.client.gui.screens.Screen screen) {
+        if (invTweaksSortScreens == null) {
+            return;
+        }
+        try {
+            if (invTweaksSortScreens.get(null) instanceof java.util.Set<?> screens) {
+                screens.remove(screen);
+            }
+        } catch (ReflectiveOperationException | RuntimeException e) {
+            invTweaksSortScreens = null;
+        }
+    }
+
+    private static java.lang.reflect.Field invTweaksSortScreens = findInvTweaksSortScreens();
+
+    private static java.lang.reflect.Field findInvTweaksSortScreens() {
+        if (!net.minecraftforge.fml.ModList.get().isLoaded("invtweaks")) {
+            return null;
+        }
+        try {
+            var field = Class.forName("invtweaks.events.ClientEvents").getDeclaredField("screensWithExtSort");
+            field.setAccessible(true);
+            return field;
+        } catch (ReflectiveOperationException | RuntimeException e) {
+            com.lhy.mest.MESplicedterminal.LOGGER.info("MEST: this Inventory Tweaks has no container-sort list ({})",
+                    e.toString());
+            return null;
+        }
     }
 
     private static void onRegisterKeyMappings(RegisterKeyMappingsEvent event) {

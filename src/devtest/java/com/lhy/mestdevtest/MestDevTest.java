@@ -326,6 +326,7 @@ public class MestDevTest {
         if (player.serverLevel().getBlockEntity(base.below()) instanceof DriveBlockEntity drive) {
             drive.getInternalInventory().setItemDirect(0, AEItems.ITEM_CELL_64K.stack());
             drive.getInternalInventory().setItemDirect(1, AEItems.ITEM_CELL_64K.stack());
+            drive.getInternalInventory().setItemDirect(2, AEItems.FLUID_CELL_64K.stack());
             log("cells inserted");
         } else {
             log("FAIL drive block entity missing");

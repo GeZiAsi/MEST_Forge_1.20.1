@@ -28,6 +28,10 @@ final class DevTestSteps {
             registerSeededLayout(steps);
             return;
         }
+        if ("fluid".equals(System.getProperty("mest.devtest.steps"))) {
+            DevTestFluid.register(steps);
+            return;
+        }
         steps.add(new MestDevTest.Step("describe screen", 10, null, mc -> {
             if (mc.screen instanceof MESTScreen screen) {
                 var menu = screen.getMenu();
@@ -111,6 +115,7 @@ final class DevTestSteps {
                 }));
             }
         }
+        DevTestFluid.register(steps);
         // An item being crafted: pinned to the first row with the assembler-light animation over it.
         steps.add(new MestDevTest.Step("pending craft of iron ingot", 25, "mest_13_pending_craft", mc -> {
             if (mc.screen instanceof MESTScreen screen) {

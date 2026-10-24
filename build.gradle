@@ -120,6 +120,10 @@ legacyForge {
             if (project.findProperty('mestDevtestGuiScale')) {
                 systemProperty 'mest.devtest.guiScale', project.findProperty('mestDevtestGuiScale').toString()
             }
+            // Runs only one group of steps, e.g. -PmestDevtestSteps=fluid.
+            if (project.findProperty('mestDevtestSteps')) {
+                systemProperty 'mest.devtest.steps', project.findProperty('mestDevtestSteps').toString()
+            }
         }
         server {
             server()
@@ -201,8 +205,9 @@ if (gtlModsDir.isPresent()) {
     def wanted = ['gtlcore-', 'gtceu-', 'ldlib-forge-', 'ad_astra-forge-', 'botarium-forge-',
                   'resourcefulconfig-forge-', 'resourcefullib-forge-', 'gtmthings-', 'mae2-',
                   'ftb-ultimine-forge-', 'ftb-library-forge-', 'ftb-chunks-forge-', 'ftb-teams-forge-',
-                  // Not a gtlcore dependency: checks the terminal drops its sort button.
-                  'invtweaks-']
+                  // Not gtlcore dependencies: the terminal drops invtweaks' sort button, and clicks
+                  // in the ME list pass through Mouse Tweaks' screen mouse handlers.
+                  'invtweaks-', 'MouseTweaks-']
     repositories {
         exclusiveContent {
             forRepository {
