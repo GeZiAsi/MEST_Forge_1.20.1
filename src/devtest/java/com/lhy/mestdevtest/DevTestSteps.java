@@ -65,6 +65,13 @@ final class DevTestSteps {
                 mc -> MestDevTest.runOnServer(mc, DevTestSteps::encodeCraftingPattern)));
         steps.add(new MestDevTest.Step("encode processing pattern", 20, "mest_05_encoded_processing",
                 mc -> MestDevTest.runOnServer(mc, DevTestSteps::encodeProcessingPattern)));
+        // The provider list arrives by packet; it must be applied on the render thread.
+        steps.add(new MestDevTest.Step("show pattern access", 40, null, mc -> {
+            watchProviderThread(mc);
+            runHotkey(mc, "pattern_access");
+        }));
+        steps.add(new MestDevTest.Step("pattern access lists providers", 5, null, DevTestSteps::logPatternAccess));
+        steps.add(new MestDevTest.Step("hide pattern access", 5, null, mc -> runHotkey(mc, "pattern_access")));
         if (net.minecraftforge.fml.ModList.get().isLoaded("jei")) {
             var crafting = com.lhy.mest.integration.MestRecipeTransferContext.Target.CRAFTING;
             var encoding = com.lhy.mest.integration.MestRecipeTransferContext.Target.PATTERN_ENCODING;
@@ -230,6 +237,50 @@ final class DevTestSteps {
             MestDevTest.LOGGER.error("MEST-DEVTEST FAIL hotkey {}", id, e);
         }
     }
+
+    private static void logPatternAccess(Minecraft mc) {
+        if (!(mc.screen instanceof MESTScreen screen)) {
+            MestDevTest.log("FAIL pattern access: screen {}", mc.screen);
+            return;
+        }
+        try {
+            var panel = DevTestDock.panel(screen, "pattern_access");
+            var field = panel.getClass().getDeclaredField("providers");
+            field.setAccessible(true);
+            int count = ((List<?>) field.get(panel)).size();
+            MestDevTest.log("{} pattern access lists {} provider(s), last applied on {}",
+                    count > 0 && "Render thread".equals(lastProviderThread) ? "PASS" : "FAIL", count,
+                    lastProviderThread);
+        } catch (ReflectiveOperationException e) {
+            MestDevTest.LOGGER.error("MEST-DEVTEST FAIL pattern access", e);
+        }
+    }
+
+    /** Swaps the panel's provider list for one that records which thread fills it. */
+    @SuppressWarnings({ "unchecked", "rawtypes" })
+    private static void watchProviderThread(Minecraft mc) {
+        if (!(mc.screen instanceof MESTScreen screen)) {
+            return;
+        }
+        try {
+            var panel = DevTestDock.panel(screen, "pattern_access");
+            var field = panel.getClass().getDeclaredField("providers");
+            field.setAccessible(true);
+            var watched = new java.util.ArrayList((List) field.get(panel)) {
+                @Override
+                public boolean addAll(java.util.Collection entries) {
+                    lastProviderThread = Thread.currentThread().getName();
+                    return super.addAll(entries);
+                }
+            };
+            field.set(panel, watched);
+        } catch (ReflectiveOperationException e) {
+            MestDevTest.LOGGER.error("MEST-DEVTEST FAIL watch providers", e);
+        }
+    }
+
+    /** Thread that last delivered a provider list to the terminal screen. */
+    static volatile String lastProviderThread;
 
     private static MESTMenu serverMenu(ServerPlayer player) {
         if (player.containerMenu instanceof MESTMenu menu) {

@@ -739,8 +739,11 @@ public class PatternAccessPanel extends ModulePanel {
             for (int filteredIndex : indexes) {
                 Entry entry = filtered.get(filteredIndex);
                 Integer original = providerIndexes.get(entry);
+                if (original == null) {
+                    continue;
+                }
                 int slotRows = showSlots ? (entry.inventorySize() + columns - 1) / columns : 0;
-                specs.add(new ProviderRows(original == null ? 0 : original, slotRows, header));
+                specs.add(new ProviderRows(original, slotRows, header));
                 header = false;
             }
         }

@@ -32,7 +32,12 @@ public final class PatternProviderClientHandler {
         if (!packet.isWellFormed()) {
             return;
         }
+        // Forge runs packet handlers on the network thread; the panel's provider list is read by
+        // the render thread, so a list swapped mid-frame crashed the screen (seen on servers).
+        context.enqueueWork(() -> apply(packet));
+    }
 
+    private static void apply(PatternProviderListPacket packet) {
         var minecraft = Minecraft.getInstance();
         MESTScreen screen;
         if (minecraft.screen instanceof MESTScreen currentScreen) {

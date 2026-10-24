@@ -202,6 +202,10 @@ modBus.addListener((RegisterMestModulesEvent event) ->
 
 ## 更新日志
 
+### v0.0.3.3-forge1.20.1
+
+- 修复：在服务器上使用时，样板管理面板偶尔导致游戏崩溃（Rendering screen / IndexOutOfBoundsException）。样板供应器列表改为在游戏主线程更新。
+
 ### v0.0.3.2-forge1.20.1
 
 - 修复：左键点库存为 0 的可合成流体 / 气体，不会弹出下单数量界面。
