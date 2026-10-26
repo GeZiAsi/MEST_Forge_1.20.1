@@ -77,7 +77,10 @@ public class MestDevTest {
             MinecraftForge.EVENT_BUS.addListener(this::onClientTick);
             log("enabled");
             // Runs on the render thread once the game loop starts, early in resource loading.
-            Minecraft.getInstance().execute(MestDevTest::moveToSecondaryMonitor);
+            Minecraft.getInstance().execute(() -> {
+                moveToSecondaryMonitor();
+                DevTestBackground.install(Minecraft.getInstance());
+            });
             resetLayout();
             if (Boolean.getBoolean("mest.devtest.quit")) {
                 startWatchdog();
@@ -217,6 +220,7 @@ public class MestDevTest {
             return;
         }
         Minecraft mc = Minecraft.getInstance();
+        DevTestBackground.tick(mc);
         ticks++;
         try {
             switch (stage) {
