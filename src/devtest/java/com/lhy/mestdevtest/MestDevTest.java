@@ -76,11 +76,83 @@ public class MestDevTest {
         if (FMLEnvironment.dist == Dist.CLIENT && Boolean.getBoolean("mest.devtest")) {
             MinecraftForge.EVENT_BUS.addListener(this::onClientTick);
             log("enabled");
+            // Runs on the render thread once the game loop starts, early in resource loading.
+            Minecraft.getInstance().execute(MestDevTest::moveToSecondaryMonitor);
             resetLayout();
             if (Boolean.getBoolean("mest.devtest.quit")) {
                 startWatchdog();
             }
         }
+    }
+
+    /**
+     * With {@code mest.devtest.pack} (a resource-pack zip), copies it into this run's resourcepacks
+     * folder and turns it on, to look at the terminal with a player's textures.
+     */
+    private static boolean selectResourcePack(Minecraft mc) {
+        String source = System.getProperty("mest.devtest.pack");
+        if (source == null || source.isBlank()) {
+            return false;
+        }
+        try {
+            var from = java.nio.file.Path.of(source);
+            var dir = mc.getResourcePackDirectory();
+            java.nio.file.Files.createDirectories(dir);
+            var to = dir.resolve(from.getFileName().toString());
+            java.nio.file.Files.copy(from, to, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+            var repository = mc.getResourcePackRepository();
+            repository.reload();
+            String id = "file/" + to.getFileName();
+            var selected = new ArrayList<>(repository.getSelectedIds());
+            if (selected.contains(id)) {
+                return false;
+            }
+            selected.add(id);
+            repository.setSelected(selected);
+            mc.options.updateResourcePacks(repository);
+            log("resource pack {} selected={}", id, repository.getSelectedIds().contains(id));
+            return true;
+        } catch (Exception e) {
+            LOGGER.error("MEST-DEVTEST FAIL resource pack {}", source, e);
+            return false;
+        }
+    }
+
+    /**
+     * Keeps the test window off the main screen: onto the first monitor that is not the primary one,
+     * unless {@code mest.devtest.monitor} is {@code primary}.
+     */
+    private static void moveToSecondaryMonitor() {
+        if ("primary".equals(System.getProperty("mest.devtest.monitor"))) {
+            return;
+        }
+        long window = Minecraft.getInstance().getWindow().getWindow();
+        var monitors = org.lwjgl.glfw.GLFW.glfwGetMonitors();
+        long primary = org.lwjgl.glfw.GLFW.glfwGetPrimaryMonitor();
+        if (monitors == null) {
+            return;
+        }
+        for (int i = 0; i < monitors.limit(); i++) {
+            long monitor = monitors.get(i);
+            if (monitor == primary) {
+                continue;
+            }
+            int[] x = new int[1];
+            int[] y = new int[1];
+            int[] w = new int[1];
+            int[] h = new int[1];
+            org.lwjgl.glfw.GLFW.glfwGetMonitorWorkarea(monitor, x, y, w, h);
+            int[] winW = new int[1];
+            int[] winH = new int[1];
+            org.lwjgl.glfw.GLFW.glfwGetWindowSize(window, winW, winH);
+            int left = x[0] + Math.max(0, (w[0] - winW[0]) / 2);
+            int top = y[0] + Math.max(30, (h[0] - winH[0]) / 2);
+            org.lwjgl.glfw.GLFW.glfwSetWindowPos(window, left, top);
+            log("window moved to monitor {} ({}x{} at {},{})", org.lwjgl.glfw.GLFW.glfwGetMonitorName(monitor),
+                    w[0], h[0], x[0], y[0]);
+            return;
+        }
+        log("only one monitor, window stays where it opened");
     }
 
     /**
@@ -163,7 +235,10 @@ public class MestDevTest {
                     if (ticks % 200 == 0) {
                         log("waiting for title screen, current={}", mc.screen);
                     }
-                    if (mc.screen instanceof TitleScreen title && ticks > 40) {
+                    if (ticks == 20 && selectResourcePack(mc)) {
+                        ticks = 0;
+                    }
+                    if (mc.screen instanceof TitleScreen title && ticks > 40 && mc.getOverlay() == null) {
                         openWorld(mc, title);
                         stage = Stage.WORLD;
                         ticks = 0;

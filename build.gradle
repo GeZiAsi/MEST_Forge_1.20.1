@@ -124,6 +124,14 @@ legacyForge {
             if (project.findProperty('mestDevtestSteps')) {
                 systemProperty 'mest.devtest.steps', project.findProperty('mestDevtestSteps').toString()
             }
+            // A resource-pack zip to turn on (copied into run/devtest/resourcepacks).
+            if (project.findProperty('mestDevtestPack')) {
+                systemProperty 'mest.devtest.pack', project.findProperty('mestDevtestPack').toString()
+            }
+            // The window opens on a secondary monitor; -PmestDevtestMonitor=primary keeps it on the main one.
+            if (project.findProperty('mestDevtestMonitor')) {
+                systemProperty 'mest.devtest.monitor', project.findProperty('mestDevtestMonitor').toString()
+            }
         }
         server {
             server()

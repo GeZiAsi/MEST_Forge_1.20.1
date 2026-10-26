@@ -32,6 +32,10 @@ final class DevTestSteps {
             DevTestFluid.register(steps);
             return;
         }
+        if ("ui".equals(System.getProperty("mest.devtest.steps"))) {
+            DevTestUi.register(steps);
+            return;
+        }
         steps.add(new MestDevTest.Step("describe screen", 10, null, mc -> {
             if (mc.screen instanceof MESTScreen screen) {
                 var menu = screen.getMenu();

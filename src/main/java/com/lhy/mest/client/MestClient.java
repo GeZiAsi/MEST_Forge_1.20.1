@@ -28,6 +28,8 @@ public final class MestClient {
         ProviderPickerClientBridge.install(ProviderPickerClientHandler::handle);
         modEventBus.addListener(MestClient::onRegisterGuiOverlays);
         modEventBus.addListener(MestClient::onRegisterKeyMappings);
+        modEventBus.addListener((net.minecraftforge.client.event.RegisterClientReloadListenersEvent event) ->
+                event.registerReloadListener(com.lhy.mest.client.panel.PatternModesTexture.RELOAD_LISTENER));
         modEventBus.addListener((FMLClientSetupEvent event) -> event.enqueueWork(() -> {
             registerScreens();
             MestClientModules.collect();

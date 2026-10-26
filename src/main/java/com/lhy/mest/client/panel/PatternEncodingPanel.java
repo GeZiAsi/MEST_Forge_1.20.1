@@ -66,12 +66,13 @@ public class PatternEncodingPanel extends ModulePanel {
     private static final int PATTERN_SLOT_X = 139;
     private static final int ENCODED_SLOT_Y = 47;
     private static final int STONECUTTING_COLS = 4;
-    private static final int STONECUTTING_ROWS = 2;
+    private static final int STONECUTTING_ROWS = 3;
     private static final int SLOT_OUTLINE = 0xFFF2F2F2;
     private static final Blitter MODES = Blitter.texture("guis/pattern_modes.png", 256, 256);
-    private static final Blitter STONE_SLOT = MODES.copy().src(124, 140, 20, 22);
-    private static final Blitter STONE_SLOT_SELECTED = MODES.copy().src(124, 162, 20, 22);
-    private static final Blitter STONE_SLOT_HOVER = MODES.copy().src(124, 184, 20, 22);
+    // AE2 15's pattern_modes.png: 16x18 recipe buttons beside the stonecutting background.
+    private static final Blitter STONE_SLOT = MODES.copy().src(126, 141, 16, 18);
+    private static final Blitter STONE_SLOT_SELECTED = MODES.copy().src(126, 159, 16, 18);
+    private static final Blitter STONE_SLOT_HOVER = MODES.copy().src(126, 177, 16, 18);
 
     private final MESTMenu menu;
     private final Map<EncodingMode, TabButton> modeTabs = new EnumMap<>(EncodingMode.class);
@@ -261,16 +262,19 @@ public class PatternEncodingPanel extends ModulePanel {
         } else if (mode == EncodingMode.SMITHING_TABLE) {
             layoutSmithingSlots(bgX, bgY);
         } else if (mode == EncodingMode.STONECUTTING) {
-            setSlot(menu.getStonecuttingInputSlot(), bgX + 7, bgY + 25);
+            var input = layout().stonecuttingInput();
+            setSlot(menu.getStonecuttingInputSlot(), bgX + input.x(), bgY + input.y());
         }
     }
 
     private void layoutCraftingSlots(int bgX, int bgY) {
+        var grid = layout().craftingGrid();
         var slots = menu.getPatternCraftingSlots();
         for (int i = 0; i < slots.length; i++) {
-            setSlot(slots[i], bgX + 7 + (i % 3) * SLOT, bgY + 7 + (i / 3) * SLOT);
+            setSlot(slots[i], bgX + grid.x() + (i % 3) * SLOT, bgY + grid.y() + (i / 3) * SLOT);
         }
-        setSlot(menu.getPatternCraftOutputSlot(), bgX + 98, bgY + 25);
+        var result = layout().craftingResult();
+        setSlot(menu.getPatternCraftOutputSlot(), bgX + result.x(), bgY + result.y());
     }
 
     private void layoutProcessingSlots(int bgX, int bgY) {
@@ -278,26 +282,29 @@ public class PatternEncodingPanel extends ModulePanel {
         if (processingScroll > maxScroll) {
             processingScroll = maxScroll;
         }
+        var grid = layout().processingGrid();
         var inputs = menu.getProcessingInputSlots();
         for (int i = 0; i < inputs.length; i++) {
             int row = i / 3 - processingScroll;
             if (row >= 0 && row < 3) {
-                setSlot(inputs[i], bgX + 16 + (i % 3) * SLOT, bgY + 7 + row * SLOT);
+                setSlot(inputs[i], bgX + grid.x() + (i % 3) * SLOT, bgY + grid.y() + row * SLOT);
             }
         }
+        var column = layout().processingOutputs();
         var outputs = menu.getProcessingOutputSlots();
         for (int i = 0; i < outputs.length; i++) {
             int row = i - processingScroll;
             if (row >= 0 && row < 3) {
-                setSlot(outputs[i], bgX + 101, bgY + 7 + row * SLOT);
+                setSlot(outputs[i], bgX + column.x(), bgY + column.y() + row * SLOT);
             }
         }
     }
 
     private void layoutSmithingSlots(int bgX, int bgY) {
-        setSlot(menu.getSmithingTableTemplateSlot(), bgX + 7, bgY + 25);
-        setSlot(menu.getSmithingTableBaseSlot(), bgX + 25, bgY + 25);
-        setSlot(menu.getSmithingTableAdditionSlot(), bgX + 43, bgY + 25);
+        var grid = layout().smithingGrid();
+        setSlot(menu.getSmithingTableTemplateSlot(), bgX + grid.x(), bgY + grid.y());
+        setSlot(menu.getSmithingTableBaseSlot(), bgX + grid.x() + SLOT, bgY + grid.y());
+        setSlot(menu.getSmithingTableAdditionSlot(), bgX + grid.x() + 2 * SLOT, bgY + grid.y());
     }
 
     private void hideOwnedSlots() {
@@ -375,7 +382,8 @@ public class PatternEncodingPanel extends ModulePanel {
             renderSmithingResult(g, font, bgX, bgY);
         } else if (menu.getPatternEncodingMode() == EncodingMode.PROCESSING && maxProcessingScroll() > 0) {
             scrollbar.setScroll(processingScroll);
-            scrollbar.render(g, bgX + 7, bgY + 7, 8, 52, maxProcessingScroll());
+            var track = layout().processingScroll();
+            scrollbar.render(g, bgX + track.x(), bgY + track.y(), 7, track.height(), maxProcessingScroll());
         }
 
         int patternX = patternSlotScreenX();
@@ -418,8 +426,9 @@ public class PatternEncodingPanel extends ModulePanel {
     private void renderSmithingResult(GuiGraphics g, Font font, int bgX, int bgY) {
         ItemStack result = getSmithingResult();
         if (!result.isEmpty()) {
-            g.renderItem(result, bgX + 101, bgY + 25);
-            g.renderItemDecorations(font, result, bgX + 101, bgY + 25);
+            var at = layout().smithingResult();
+            g.renderItem(result, bgX + at.x(), bgY + at.y());
+            g.renderItemDecorations(font, result, bgX + at.x(), bgY + at.y());
         }
     }
 
@@ -433,23 +442,23 @@ public class PatternEncodingPanel extends ModulePanel {
         for (int i = start; i < end; i++) {
             var recipe = recipes.get(i);
             int visibleIndex = i - start;
-            int slotX = bgX + 26 + (visibleIndex % STONECUTTING_COLS) * 20;
-            int slotY = bgY + 12 + (visibleIndex / STONECUTTING_COLS) * 22;
+            int slotX = stonecuttingSlotX(bgX, visibleIndex);
+            int slotY = stonecuttingSlotY(bgY, visibleIndex);
             boolean isSelected = selected != null && selected.equals(recipe.getId());
-            boolean hover = contains(mouseX, mouseY, slotX, slotY, 20, 22);
+            boolean hover = contains(mouseX, mouseY, slotX, slotY, 16, 18);
             Blitter slotBg = isSelected ? STONE_SLOT_SELECTED : hover ? STONE_SLOT_HOVER : STONE_SLOT;
-            slotBg.dest(slotX, slotY).blit(g);
-            int itemY = (isSelected || hover) ? slotY + 3 : slotY + 2;
+            slotBg.dest(slotX, slotY - 1).blit(g);
             ItemStack result = recipe.getResultItem(menu.getPlayer().level().registryAccess());
-            g.renderItem(result, slotX + 2, itemY);
-            g.renderItemDecorations(font, result, slotX + 2, itemY);
+            g.renderItem(result, slotX, slotY);
+            g.renderItemDecorations(font, result, slotX, slotY);
             if (hover) {
                 hoveredStonecuttingRecipe = recipe;
             }
         }
         if (maxStonecuttingScroll() > 0) {
             scrollbar.setScroll(stonecuttingScroll);
-            scrollbar.render(g, bgX + 109, bgY + 11, 8, 44, maxStonecuttingScroll());
+            var track = layout().stonecuttingScroll();
+            scrollbar.render(g, bgX + track.x(), bgY + track.y(), 7, track.height(), maxStonecuttingScroll());
         }
     }
 
@@ -537,11 +546,13 @@ public class PatternEncodingPanel extends ModulePanel {
         int bgX = contentLeft();
         int bgY = contentTop();
         if (menu.getPatternEncodingMode() == EncodingMode.PROCESSING && maxProcessingScroll() > 0) {
-            if (!contains(mx, my, bgX + 7, bgY + 7, 8, 52)) {
+            var track = layout().processingScroll();
+            if (!contains(mx, my, bgX + track.x(), bgY + track.y(), 7, track.height())) {
                 return false;
             }
             scrollbar.setScroll(processingScroll);
-            boolean consumed = scrollbar.mousePressed(mx, my, bgX + 7, bgY + 7, 8, 52, 3, maxProcessingScroll());
+            boolean consumed = scrollbar.mousePressed(mx, my, bgX + track.x(), bgY + track.y(), 7, track.height(),
+                    3, maxProcessingScroll());
             if (consumed) {
                 processingScroll = scrollbar.scroll();
                 layoutSlots();
@@ -549,11 +560,12 @@ public class PatternEncodingPanel extends ModulePanel {
             return consumed;
         }
         if (menu.getPatternEncodingMode() == EncodingMode.STONECUTTING && maxStonecuttingScroll() > 0) {
-            if (!contains(mx, my, bgX + 109, bgY + 11, 8, 44)) {
+            var track = layout().stonecuttingScroll();
+            if (!contains(mx, my, bgX + track.x(), bgY + track.y(), 7, track.height())) {
                 return false;
             }
             scrollbar.setScroll(stonecuttingScroll);
-            boolean consumed = scrollbar.mousePressed(mx, my, bgX + 109, bgY + 11, 8, 44,
+            boolean consumed = scrollbar.mousePressed(mx, my, bgX + track.x(), bgY + track.y(), 7, track.height(),
                     STONECUTTING_ROWS, maxStonecuttingScroll());
             if (consumed) {
                 stonecuttingScroll = scrollbar.scroll();
@@ -570,13 +582,15 @@ public class PatternEncodingPanel extends ModulePanel {
         }
         int bgY = contentTop();
         if (menu.getPatternEncodingMode() == EncodingMode.PROCESSING) {
-            scrollbar.mouseDragged(my, bgY + 7, 52, maxProcessingScroll());
+            var track = layout().processingScroll();
+            scrollbar.mouseDragged(my, bgY + track.y(), track.height(), maxProcessingScroll());
             processingScroll = scrollbar.scroll();
             layoutSlots();
             return true;
         }
         if (menu.getPatternEncodingMode() == EncodingMode.STONECUTTING) {
-            scrollbar.mouseDragged(my, bgY + 11, 44, maxStonecuttingScroll());
+            var track = layout().stonecuttingScroll();
+            scrollbar.mouseDragged(my, bgY + track.y(), track.height(), maxStonecuttingScroll());
             stonecuttingScroll = scrollbar.scroll();
             return true;
         }
@@ -601,13 +615,26 @@ public class PatternEncodingPanel extends ModulePanel {
         int end = Math.min(recipes.size(), start + STONECUTTING_COLS * STONECUTTING_ROWS);
         for (int i = start; i < end; i++) {
             int visibleIndex = i - start;
-            int slotX = bgX + 26 + (visibleIndex % STONECUTTING_COLS) * 20;
-            int slotY = bgY + 12 + (visibleIndex / STONECUTTING_COLS) * 22;
-            if (contains(mx, my, slotX, slotY, 20, 22)) {
+            int slotX = stonecuttingSlotX(bgX, visibleIndex);
+            int slotY = stonecuttingSlotY(bgY, visibleIndex);
+            if (contains(mx, my, slotX, slotY, 16, 18)) {
                 return recipes.get(i);
             }
         }
         return null;
+    }
+
+    /** AE2 15's recipe grid: 16x18 buttons, the first item at the measured recipes point. */
+    private static int stonecuttingSlotX(int bgX, int visibleIndex) {
+        return bgX + layout().stonecuttingRecipes().x() + (visibleIndex % STONECUTTING_COLS) * 16;
+    }
+
+    private static int stonecuttingSlotY(int bgY, int visibleIndex) {
+        return bgY + layout().stonecuttingRecipes().y() + (visibleIndex / STONECUTTING_COLS) * 18;
+    }
+
+    private static PatternModesLayout layout() {
+        return PatternModesTexture.layout();
     }
 
     private int maxProcessingScroll() {
@@ -704,15 +731,19 @@ public class PatternEncodingPanel extends ModulePanel {
 
     private static Blitter modeBackground(EncodingMode mode) {
         if (mode == EncodingMode.PROCESSING) {
-            return MODES.copy().src(0, 70, MODE_W, MODE_H);
+            return MODES.copy().src(PatternModesLayout.PROCESSING_SRC_X, PatternModesLayout.PROCESSING_SRC_Y,
+                    MODE_W, MODE_H);
         }
         if (mode == EncodingMode.SMITHING_TABLE) {
-            return MODES.copy().src(128, 70, MODE_W, MODE_H);
+            return MODES.copy().src(PatternModesLayout.SMITHING_SRC_X, PatternModesLayout.SMITHING_SRC_Y,
+                    MODE_W, MODE_H);
         }
         if (mode == EncodingMode.STONECUTTING) {
-            return MODES.copy().src(0, 140, MODE_W, MODE_H);
+            return MODES.copy().src(PatternModesLayout.STONECUTTING_SRC_X, PatternModesLayout.STONECUTTING_SRC_Y,
+                    MODE_W, MODE_H);
         }
-        return MODES.copy().src(0, 0, MODE_W, MODE_H);
+        return MODES.copy().src(PatternModesLayout.CRAFTING_SRC_X, PatternModesLayout.CRAFTING_SRC_Y,
+                MODE_W, MODE_H);
     }
 
     private static boolean contains(double mx, double my, int x, int y, int w, int h) {

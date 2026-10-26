@@ -118,6 +118,26 @@ public class DevTestJei implements IModPlugin {
         }
     }
 
+    /** Points the mouse at JEI's bookmark button left of MEST's craft button, so its tooltip shows. */
+    static void hoverBookmark(Minecraft mc) {
+        try {
+            Class<?> owner = Class.forName("com.lhy.mest.integration.MestJeiRecipeButtons");
+            java.lang.reflect.Field field = owner.getDeclaredField("BUTTONS");
+            field.setAccessible(true);
+            for (Object button : (java.util.List<?>) field.get(null)) {
+                var areaMethod = button.getClass().getDeclaredMethod("area");
+                areaMethod.setAccessible(true);
+                var area = (net.minecraft.client.renderer.Rect2i) areaMethod.invoke(button);
+                DevTestUi.moveMouse(mc, area.getX() - 7, area.getY() + area.getHeight() / 2.0);
+                MestDevTest.log("hovering left of mest button at {},{}", area.getX(), area.getY());
+                return;
+            }
+            MestDevTest.log("FAIL no mest jei button to hover");
+        } catch (ReflectiveOperationException e) {
+            MestDevTest.LOGGER.error("MEST-DEVTEST FAIL hover bookmark", e);
+        }
+    }
+
     /** Empties the crafting and pattern grids so a following transfer is checked from scratch. */
     static void clearGrids(ServerPlayer player) {
         if (player.containerMenu instanceof MESTMenu menu) {

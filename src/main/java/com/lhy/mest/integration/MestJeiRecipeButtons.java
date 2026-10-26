@@ -102,8 +102,10 @@ final class MestJeiRecipeButtons {
         GuiGraphics g = event.getGuiGraphics();
         int mouseX = event.getMouseX();
         int mouseY = event.getMouseY();
+        // JEI has already drawn its tooltips (at z 400) by now; stay below them so a tooltip shown
+        // over these buttons, e.g. the bookmark button's, keeps its text in front.
         g.pose().pushPose();
-        g.pose().translate(0, 0, 300);
+        g.pose().translate(0, 0, 100);
         Button hovered = null;
         for (Button button : BUTTONS) {
             boolean hover = button.contains(mouseX, mouseY);

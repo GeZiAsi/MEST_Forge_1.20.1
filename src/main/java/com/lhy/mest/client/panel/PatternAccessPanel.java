@@ -170,7 +170,9 @@ public class PatternAccessPanel extends ModulePanel {
 
     @Override
     public int minWidth() {
-        return chromeWidth(MIN_COLUMNS) + preferredContentRightInset();
+        // The search row (field + three mode buttons) must fit as well as the narrowest grid.
+        int searchRow = 2 * CONTENT_PADDING + SEARCH_WIDTH + 1 + 3 * (MODE_BUTTON + 1);
+        return Math.max(chromeWidth(MIN_COLUMNS) + preferredContentRightInset(), searchRow);
     }
 
     @Override
@@ -316,8 +318,13 @@ public class PatternAccessPanel extends ModulePanel {
         drawWell(g, maxRows);
         if (filteredProviders().isEmpty()) {
             hideProviderActionButtons();
-            g.drawString(font, Component.translatable("gui.mesplicedterminal.pattern_access.empty"),
-                    gridLeft() + 4, contentTop() + 2, COLOR_TITLE_TEXT, false);
+            // Wrapped inside the well, so a narrow panel does not spill the text past its edge.
+            int lineY = contentTop() + 2;
+            for (var line : font.split(Component.translatable("gui.mesplicedterminal.pattern_access.empty"),
+                    Math.max(1, gridWidth() - 6))) {
+                g.drawString(font, line, gridLeft() + 4, lineY, COLOR_TITLE_TEXT, false);
+                lineY += font.lineHeight;
+            }
             drawScrollerRail(g);
             g.flush();
             drawScrollerTrack(g);
